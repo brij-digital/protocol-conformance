@@ -102,6 +102,70 @@ function currentSpecSpotQuoteBToA(amountIn: bigint) {
   };
 }
 
+function tickIndexToSqrtPriceX64Reference(tickIndex: number): string {
+  if (tickIndex >= 0) {
+    let ratio =
+      (tickIndex & 1) !== 0
+        ? 79232123823359799118286999567n
+        : 79228162514264337593543950336n;
+    const factors: Array<[number, bigint]> = [
+      [2, 79236085330515764027303304731n],
+      [4, 79244008939048815603706035061n],
+      [8, 79259858533276714757314932305n],
+      [16, 79291567232598584799939703904n],
+      [32, 79355022692464371645785046466n],
+      [64, 79482085999252804386437311141n],
+      [128, 79736823300114093921829183326n],
+      [256, 80248749790819932309965073892n],
+      [512, 81282483887344747381513967011n],
+      [1024, 83390072131320151908154831281n],
+      [2048, 87770609709833776024991924138n],
+      [4096, 97234110755111693312479820773n],
+      [8192, 119332217159966728226237229890n],
+      [16384, 179736315981702064433883588727n],
+      [32768, 407748233172238350107850275304n],
+      [65536, 2098478828474011932436660412517n],
+      [131072, 55581415166113811149459800483533n],
+      [262144, 38992368544603139932233054999993551n],
+    ];
+    for (const [bit, factor] of factors) {
+      if ((tickIndex & bit) !== 0) {
+        ratio = (ratio * factor) >> 96n;
+      }
+    }
+    return (ratio >> 32n).toString();
+  }
+
+  const absTick = Math.abs(tickIndex);
+  let ratio = (absTick & 1) !== 0 ? 18445821805675392311n : 18446744073709551616n;
+  const factors: Array<[number, bigint]> = [
+    [2, 18444899583751176498n],
+    [4, 18443055278223354162n],
+    [8, 18439367220385604838n],
+    [16, 18431993317065449817n],
+    [32, 18417254355718160513n],
+    [64, 18387811781193591352n],
+    [128, 18329067761203520168n],
+    [256, 18212142134806087854n],
+    [512, 17980523815641551639n],
+    [1024, 17526086738831147013n],
+    [2048, 16651378430235024244n],
+    [4096, 15030750278693429944n],
+    [8192, 12247334978882834399n],
+    [16384, 8131365268884726200n],
+    [32768, 3584323654723342297n],
+    [65536, 696457651847595233n],
+    [131072, 26294789957452057n],
+    [262144, 37481735321082n],
+  ];
+  for (const [bit, factor] of factors) {
+    if ((absTick & bit) !== 0) {
+      ratio = (ratio * factor) >> 64n;
+    }
+  }
+  return ratio.toString();
+}
+
 describe('Orca runtime comparison harness', () => {
   it('exposes the focused Orca runtime surface we want to validate', async () => {
     const write = await explainRuntimeOperation({
@@ -226,6 +290,16 @@ describe('Orca runtime comparison harness', () => {
     expect(view.derived.directional_initialized_tick_count).toBe('0');
     expect(view.derived.first_initialized_tick).toBeNull();
     expect(view.derived.next_initialized_tick).toBeNull();
+    expect(view.derived.next_swap_target_tick).toEqual({
+      initialized: false,
+      terminal: true,
+      tick_index: String(expectedStarts[2]),
+      tick_array_start_index: expectedStarts[2],
+      tick_array_address: expectedAddresses[2],
+    });
+    expect(view.derived.next_swap_target_tick_sqrt_price_x64).toBe(
+      tickIndexToSqrtPriceX64Reference(expectedStarts[2]),
+    );
     expect(view.derived.initialized_liquidity_gross_total).toBe('0');
     expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
     expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
@@ -278,6 +352,16 @@ describe('Orca runtime comparison harness', () => {
     expect(view.derived.initialized_tick_count).toBe('0');
     expect(view.derived.directional_initialized_tick_count).toBe('0');
     expect(view.derived.next_initialized_tick).toBeNull();
+    expect(view.derived.next_swap_target_tick).toEqual({
+      initialized: false,
+      terminal: true,
+      tick_index: '22464',
+      tick_array_start_index: expectedStarts[2],
+      tick_array_address: expectedAddresses[2],
+    });
+    expect(view.derived.next_swap_target_tick_sqrt_price_x64).toBe(
+      tickIndexToSqrtPriceX64Reference(22464),
+    );
     expect(coreQuote.tokenEstOut.toString()).toBe('0');
     expect(coreQuote.tokenMinOut.toString()).toBe('0');
     expect(output.estimated_out).not.toBe(coreQuote.tokenEstOut.toString());
@@ -382,6 +466,17 @@ describe('Orca runtime comparison harness', () => {
         tick_array_start_index: 0,
         tick_array_address: expectedAddresses[0],
       }),
+    );
+    expect(view.derived.next_swap_target_tick).toEqual(
+      expect.objectContaining({
+        initialized: true,
+        tick_index: '2',
+        tick_array_start_index: 0,
+        tick_array_address: expectedAddresses[0],
+      }),
+    );
+    expect(view.derived.next_swap_target_tick_sqrt_price_x64).toBe(
+      tickIndexToSqrtPriceX64Reference(2),
     );
     expect(view.derived.initialized_liquidity_gross_total).toBe(String(3 * 88 * 1000));
     expect(loadedTickArrays.every((entry) => Array.isArray(entry.ticks))).toBe(true);
