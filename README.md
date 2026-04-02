@@ -62,6 +62,8 @@ The harness is now green on the first comparison wave:
   - runtime matches the `B->A` edge fixture where Orca core returns zero output
   - runtime matches a stronger `B->A` fixture with initialized ticks, including the `929 / 836` quote from Orca core
   - runtime matches the larger `B->A` exact-input case that previously overflowed in our simplified path
+  - runtime now also matches a dense initialized `A->B` quote fixture across multiple arrays
+  - runtime now matches a sparse `B->A` fixture with selected initialized ticks spread across arrays
 
 That matters because the runtime is still doing this through:
 - ordered load steps
@@ -78,6 +80,6 @@ What this repo shows now:
 - the next comparison wave should broaden coverage, not just re-argue the core shape of the runtime spec
 
 The natural next candidates are:
-- more quote fixtures
+- more quote fixtures with different fee tiers and current ticks
 - liquidity-management flows
 - additional multi-step write paths

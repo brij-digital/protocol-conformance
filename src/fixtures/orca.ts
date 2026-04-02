@@ -113,8 +113,76 @@ export function buildTickArrayArgs(
   };
 }
 
+export type TickOverride = {
+  offset: number;
+  initialized?: boolean;
+  liquidityNet?: bigint;
+  liquidityGross?: bigint;
+  feeGrowthOutsideA?: bigint;
+  feeGrowthOutsideB?: bigint;
+  rewardGrowthsOutside?: [bigint, bigint, bigint];
+};
+
+export function buildCustomTickArrayArgs(
+  startTickIndex: number,
+  overrides: TickOverride[],
+): TickArrayArgs {
+  const ticks = Array.from({ length: 88 }, () => buildBlankTick());
+  for (const override of overrides) {
+    if (override.offset < 0 || override.offset >= ticks.length) {
+      throw new Error(`Tick override offset ${override.offset} is out of range for TickArray.`);
+    }
+    ticks[override.offset] = buildBlankTick({
+      initialized: override.initialized ?? true,
+      liquidityNet: override.liquidityNet ?? 0n,
+      liquidityGross: override.liquidityGross ?? 0n,
+      feeGrowthOutsideA: override.feeGrowthOutsideA ?? 0n,
+      feeGrowthOutsideB: override.feeGrowthOutsideB ?? 0n,
+      rewardGrowthsOutside: override.rewardGrowthsOutside ?? [0n, 0n, 0n],
+    });
+  }
+  return {
+    startTickIndex,
+    whirlpool: address(ORCA_WHIRLPOOL),
+    ticks,
+  };
+}
+
 export function encodeTickArrayAccount(args: TickArrayArgs): Buffer {
   return Buffer.from(getTickArrayEncoder().encode(args));
+}
+
+export function toCoreTickArray(args: TickArrayArgs) {
+  return {
+    startTickIndex: args.startTickIndex,
+    ticks: args.ticks.map((tick) => ({
+      initialized: tick.initialized,
+      liquidityNet: BigInt(tick.liquidityNet),
+      liquidityGross: BigInt(tick.liquidityGross),
+      feeGrowthOutsideA: BigInt(tick.feeGrowthOutsideA),
+      feeGrowthOutsideB: BigInt(tick.feeGrowthOutsideB),
+      rewardGrowthsOutside: tick.rewardGrowthsOutside.map((value) => BigInt(value)),
+    })),
+  };
+}
+
+export function toCoreWhirlpool(args: WhirlpoolArgs) {
+  return {
+    feeTierIndexSeed: args.feeTierIndexSeed,
+    tickSpacing: args.tickSpacing,
+    feeRate: args.feeRate,
+    protocolFeeRate: args.protocolFeeRate,
+    liquidity: BigInt(args.liquidity),
+    sqrtPrice: BigInt(args.sqrtPrice),
+    tickCurrentIndex: args.tickCurrentIndex,
+    feeGrowthGlobalA: BigInt(args.feeGrowthGlobalA),
+    feeGrowthGlobalB: BigInt(args.feeGrowthGlobalB),
+    rewardLastUpdatedTimestamp: BigInt(args.rewardLastUpdatedTimestamp),
+    rewardInfos: args.rewardInfos.map((reward) => ({
+      emissionsPerSecondX64: BigInt(reward.emissionsPerSecondX64),
+      growthGlobalX64: BigInt(reward.growthGlobalX64),
+    })),
+  };
 }
 
 export function expectedTickArrayStarts(options: {

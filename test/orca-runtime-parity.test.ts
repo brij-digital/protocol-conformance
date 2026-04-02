@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
-import { getOracleAddress, getSwapV2Instruction, getTickArrayAddress } from '@orca-so/whirlpools-client';
+import { getOracleAddress, getSwapV2Instruction, getTickArrayAddress, type TickArrayArgs, type WhirlpoolArgs } from '@orca-so/whirlpools-client';
 import { address, createNoopSigner } from '@solana/kit';
 import { swapQuoteByInputToken } from '@orca-so/whirlpools-core';
 import { explainRuntimeOperation, prepareRuntimeInstruction, runRuntimeView } from '@brij-digital/apppack-runtime/runtimeOperationRuntime';
 import { previewIdlInstruction } from '@brij-digital/apppack-runtime';
 import {
+  buildCustomTickArrayArgs,
   buildTickArrayArgs,
   buildWhirlpoolArgs,
   expectedTickArrayStarts,
@@ -17,6 +18,8 @@ import {
   TOKEN_MINT_A,
   TOKEN_MINT_B,
   TOKEN_PROGRAM,
+  toCoreTickArray,
+  toCoreWhirlpool,
 } from '../src/fixtures/orca.js';
 import { getTestWallet, StaticAccountConnection } from '../src/support/runtime.js';
 
@@ -88,6 +91,22 @@ function getLoadedTickArrays(view: Awaited<ReturnType<typeof runRuntimeView>>): 
     throw new Error('tick_arrays_data must be an array in the comparison harness.');
   }
   return raw as LoadedTickArray[];
+}
+
+async function getExpectedTickArrayAddresses(starts: number[]) {
+  return Promise.all(
+    starts.map(async (startIndex) => (await getTickArrayAddress(address(ORCA_WHIRLPOOL), startIndex))[0]),
+  );
+}
+
+function setTickArraysOnConnection(
+  connection: StaticAccountConnection,
+  addresses: string[],
+  tickArrayArgs: TickArrayArgs[],
+) {
+  addresses.forEach((tickArrayAddress, index) => {
+    connection.setTickArray(tickArrayAddress, tickArrayArgs[index]);
+  });
 }
 
 function tickIndexToSqrtPriceX64Reference(tickIndex: number): string {
@@ -474,6 +493,130 @@ describe('Orca runtime comparison harness', () => {
     expect(loadedTickArrays.every((entry) => Array.isArray(entry.ticks))).toBe(true);
     expect(coreQuote.tokenEstOut.toString()).toBe('929');
     expect(coreQuote.tokenMinOut.toString()).toBe('836');
+    expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
+    expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
+  });
+
+  it('matches Orca A->B quote semantics with initialized ticks across multiple arrays', async () => {
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex: 0,
+      tickSpacing: 2,
+      sqrtPrice: 1n << 64n,
+      feeRate: 3000,
+      liquidity: 265000n,
+    });
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(whirlpoolArgs);
+
+    const expectedStarts = expectedTickArrayStarts({ tickCurrentIndex: 0, tickSpacing: 2, aToB: true });
+    const expectedAddresses = await getExpectedTickArrayAddresses([...expectedStarts]);
+    const tickArrayArgs = expectedStarts.map((startIndex) =>
+      buildTickArrayArgs(startIndex, { initialized: true, positiveLiquidity: true }),
+    );
+    setTickArraysOnConnection(connection, expectedAddresses, tickArrayArgs);
+
+    const coreQuote = swapQuoteByInputToken(
+      1000n,
+      true,
+      1000,
+      toCoreWhirlpool(whirlpoolArgs),
+      undefined,
+      tickArrayArgs.map(toCoreTickArray),
+      0n,
+      undefined,
+      undefined,
+    );
+
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_in',
+      input: {
+        token_in_mint: TOKEN_MINT_A,
+        token_out_mint: TOKEN_MINT_B,
+        amount_in: '1000',
+        slippage_bps: '1000',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const output = view.output as Record<string, unknown>;
+
+    expect(view.derived.tick_array_starts).toEqual([...expectedStarts]);
+    expect(view.derived.tick_arrays).toEqual(expectedAddresses);
+    expect(view.derived.initialized_tick_count).toBe(String(3 * 88));
+    expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
+    expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
+  });
+
+  it('matches Orca sparse B->A quote semantics across selected initialized ticks', async () => {
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex: 0,
+      tickSpacing: 4,
+      sqrtPrice: 1n << 64n,
+      feeRate: 2500,
+      liquidity: 600000n,
+    });
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(whirlpoolArgs);
+
+    const expectedStarts = expectedTickArrayStarts({ tickCurrentIndex: 0, tickSpacing: 4, aToB: false });
+    const expectedAddresses = await getExpectedTickArrayAddresses([...expectedStarts]);
+    const tickArrayArgs: TickArrayArgs[] = [
+      buildCustomTickArrayArgs(expectedStarts[0], [
+        { offset: 1, liquidityNet: 5000n, liquidityGross: 5000n },
+        { offset: 3, liquidityNet: -2000n, liquidityGross: 2000n },
+        { offset: 7, liquidityNet: 4000n, liquidityGross: 4000n },
+      ]),
+      buildCustomTickArrayArgs(expectedStarts[1], [
+        { offset: 0, liquidityNet: 3000n, liquidityGross: 3000n },
+        { offset: 10, liquidityNet: -1000n, liquidityGross: 1000n },
+      ]),
+      buildCustomTickArrayArgs(expectedStarts[2], []),
+    ];
+    setTickArraysOnConnection(connection, expectedAddresses, tickArrayArgs);
+
+    const coreQuote = swapQuoteByInputToken(
+      5000n,
+      false,
+      300,
+      toCoreWhirlpool(whirlpoolArgs),
+      undefined,
+      tickArrayArgs.map(toCoreTickArray),
+      0n,
+      undefined,
+      undefined,
+    );
+
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_in',
+      input: {
+        token_in_mint: TOKEN_MINT_B,
+        token_out_mint: TOKEN_MINT_A,
+        amount_in: '5000',
+        slippage_bps: '300',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const output = view.output as Record<string, unknown>;
+
+    expect(view.derived.tick_array_starts).toEqual([...expectedStarts]);
+    expect(view.derived.tick_arrays).toEqual(expectedAddresses);
+    expect(view.derived.initialized_tick_count).toBe('5');
+    expect(view.derived.directional_initialized_tick_count).toBe('5');
+    expect(view.derived.next_initialized_tick).toEqual(
+      expect.objectContaining({
+        initialized: true,
+        tick_index: '4',
+        tick_array_start_index: expectedStarts[0],
+        tick_array_address: expectedAddresses[0],
+      }),
+    );
     expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
     expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
   });
