@@ -65,6 +65,7 @@ The harness is now green on the first comparison wave:
   - runtime now also matches a dense initialized `A->B` quote fixture across multiple arrays
   - runtime now matches a sparse `B->A` fixture with selected initialized ticks spread across arrays
   - runtime now also matches non-zero current-tick fixtures, including negative `A->B` and asymmetric `B->A` setups with custom spacing
+  - runtime now also matches off-grid `sqrtPrice` fixtures and deeper multi-array crossings in both directions
 
 That matters because the runtime is still doing this through:
 - ordered load steps
@@ -81,6 +82,6 @@ What this repo shows now:
 - the next comparison wave should broaden coverage, not just re-argue the core shape of the runtime spec
 
 The natural next candidates are:
-- more quote fixtures with different fee tiers and current ticks
+- more quote fixtures with different fee tiers, current ticks, and price positions inside the tick range
 - liquidity-management flows
 - additional multi-step write paths
