@@ -28,6 +28,8 @@ export function buildWhirlpoolArgs(options?: {
   tickSpacing?: number;
   sqrtPrice?: bigint;
   feeRate?: number;
+  protocolFeeRate?: number;
+  liquidity?: bigint;
 }): WhirlpoolArgs {
   const tickSpacing = options?.tickSpacing ?? 64;
   return {
@@ -36,8 +38,8 @@ export function buildWhirlpoolArgs(options?: {
     tickSpacing,
     feeTierIndexSeed: new Uint8Array([tickSpacing, 0]),
     feeRate: options?.feeRate ?? 300,
-    protocolFeeRate: 1800,
-    liquidity: 32523523532n,
+    protocolFeeRate: options?.protocolFeeRate ?? 1800,
+    liquidity: options?.liquidity ?? 32523523532n,
     sqrtPrice: options?.sqrtPrice ?? 32523523532n,
     tickCurrentIndex: options?.tickCurrentIndex ?? 0,
     protocolFeeOwedA: 0n,
@@ -63,22 +65,51 @@ export function encodeWhirlpoolAccount(args: WhirlpoolArgs): Buffer {
   return Buffer.from(getWhirlpoolEncoder().encode(args));
 }
 
-export function buildBlankTick(): TickArgs {
+export function buildBlankTick(options?: {
+  initialized?: boolean;
+  liquidityNet?: bigint;
+  liquidityGross?: bigint;
+  feeGrowthOutsideA?: bigint;
+  feeGrowthOutsideB?: bigint;
+  rewardGrowthsOutside?: [bigint, bigint, bigint];
+}): TickArgs {
   return {
-    initialized: false,
-    liquidityNet: 0n,
-    liquidityGross: 0n,
-    feeGrowthOutsideA: 0n,
-    feeGrowthOutsideB: 0n,
-    rewardGrowthsOutside: [0n, 0n, 0n],
+    initialized: options?.initialized ?? false,
+    liquidityNet: options?.liquidityNet ?? 0n,
+    liquidityGross: options?.liquidityGross ?? 0n,
+    feeGrowthOutsideA: options?.feeGrowthOutsideA ?? 0n,
+    feeGrowthOutsideB: options?.feeGrowthOutsideB ?? 0n,
+    rewardGrowthsOutside: options?.rewardGrowthsOutside ?? [0n, 0n, 0n],
   };
 }
 
-export function buildTickArrayArgs(startTickIndex: number): TickArrayArgs {
+export function buildTickArrayArgs(
+  startTickIndex: number,
+  options?: {
+    initialized?: boolean;
+    positiveLiquidity?: boolean;
+  },
+): TickArrayArgs {
+  const initialized = options?.initialized ?? false;
+  const positiveLiquidity = options?.positiveLiquidity ?? true;
+  const liquidityNet = positiveLiquidity ? 1000n : -1000n;
   return {
     startTickIndex,
     whirlpool: address(ORCA_WHIRLPOOL),
-    ticks: Array.from({ length: 88 }, () => buildBlankTick()),
+    ticks: Array.from({ length: 88 }, () =>
+      buildBlankTick(
+        initialized
+          ? {
+              initialized: true,
+              liquidityNet,
+              liquidityGross: 1000n,
+              feeGrowthOutsideA: 0n,
+              feeGrowthOutsideB: 0n,
+              rewardGrowthsOutside: [0n, 0n, 0n],
+            }
+          : undefined,
+      ),
+    ),
   };
 }
 

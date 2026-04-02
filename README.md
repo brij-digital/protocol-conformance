@@ -66,6 +66,10 @@ The initial harness already shows both parity and a real boundary:
     - derive tick-array PDAs
     - decode those derived tick-array accounts
     - then run quote math
+  - a stronger smoke-style case now proves the next boundary clearly:
+    - the runtime loads initialized tick arrays successfully
+    - Orca core uses those ticks and returns `929 / 836`
+    - the current runtime quote still returns `1000 / 900`
   - but the current B->A quote math still diverges from Orca core on that edge fixture
   - for larger B->A inputs on that fixture, the current runtime quote path overflows before instruction preview, while Orca core still returns a valid quote
 
@@ -84,7 +88,10 @@ What the harness suggests right now:
   - simple quote flows
 - the current gap is narrower than that:
   - on the current Orca `B->A` edge fixture, we can derive the correct tick-array PDAs
+  - on a stronger smoke-style case, we can also load initialized tick arrays correctly
   - but the current quote transform still uses simplified math that diverges from Orca core
+  - that means the remaining problem is no longer load sequencing
+  - it is the expressiveness of the current pure compute layer for real swap math
   - for larger inputs on that same fixture, that simplified path overflows before instruction preview
 
 So the current red zone is not "runtime cannot do Orca".
