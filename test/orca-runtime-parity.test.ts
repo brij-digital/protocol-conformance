@@ -173,6 +173,10 @@ function tickIndexToSqrtPriceX64Reference(tickIndex: number): string {
   return ratio.toString();
 }
 
+function sqrtPriceForTickIndexReference(tickIndex: number): bigint {
+  return BigInt(tickIndexToSqrtPriceX64Reference(tickIndex));
+}
+
 describe('Orca runtime comparison harness', () => {
   it('exposes the focused Orca runtime surface we want to validate', async () => {
     const write = await explainRuntimeOperation({
@@ -613,6 +617,152 @@ describe('Orca runtime comparison harness', () => {
       expect.objectContaining({
         initialized: true,
         tick_index: '4',
+        tick_array_start_index: expectedStarts[0],
+        tick_array_address: expectedAddresses[0],
+      }),
+    );
+    expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
+    expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
+  });
+
+  it('matches Orca sparse A->B quote semantics with negative current ticks', async () => {
+    const tickCurrentIndex = -560;
+    const tickSpacing = 8;
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex,
+      tickSpacing,
+      sqrtPrice: sqrtPriceForTickIndexReference(tickCurrentIndex),
+      feeRate: 4200,
+      liquidity: 850000n,
+    });
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(whirlpoolArgs);
+
+    const expectedStarts = expectedTickArrayStarts({ tickCurrentIndex, tickSpacing, aToB: true });
+    const expectedAddresses = await getExpectedTickArrayAddresses([...expectedStarts]);
+    const tickArrayArgs: TickArrayArgs[] = [
+      buildCustomTickArrayArgs(expectedStarts[0], [
+        { offset: 10, liquidityNet: 15000n, liquidityGross: 15000n },
+        { offset: 14, liquidityNet: -4000n, liquidityGross: 4000n },
+        { offset: 18, liquidityNet: 2000n, liquidityGross: 2000n },
+      ]),
+      buildCustomTickArrayArgs(expectedStarts[1], [
+        { offset: 75, liquidityNet: 5000n, liquidityGross: 5000n },
+        { offset: 80, liquidityNet: -3500n, liquidityGross: 3500n },
+      ]),
+      buildCustomTickArrayArgs(expectedStarts[2], [{ offset: 12, liquidityNet: 6000n, liquidityGross: 6000n }]),
+    ];
+    setTickArraysOnConnection(connection, expectedAddresses, tickArrayArgs);
+
+    const coreQuote = swapQuoteByInputToken(
+      4200n,
+      true,
+      250,
+      toCoreWhirlpool(whirlpoolArgs),
+      undefined,
+      tickArrayArgs.map(toCoreTickArray),
+      0n,
+      undefined,
+      undefined,
+    );
+
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_in',
+      input: {
+        token_in_mint: TOKEN_MINT_A,
+        token_out_mint: TOKEN_MINT_B,
+        amount_in: '4200',
+        slippage_bps: '250',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const output = view.output as Record<string, unknown>;
+
+    expect(view.derived.tick_array_starts).toEqual([...expectedStarts]);
+    expect(view.derived.tick_arrays).toEqual(expectedAddresses);
+    expect(view.derived.initialized_tick_count).toBe('6');
+    expect(view.derived.directional_initialized_tick_count).toBe('6');
+    expect(view.derived.next_initialized_tick).toEqual(
+      expect.objectContaining({
+        initialized: true,
+        tick_index: '-560',
+        tick_array_start_index: expectedStarts[0],
+        tick_array_address: expectedAddresses[0],
+      }),
+    );
+    expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
+    expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
+  });
+
+  it('matches Orca B->A quote semantics with non-zero current ticks and mixed spacing', async () => {
+    const tickCurrentIndex = 792;
+    const tickSpacing = 3;
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex,
+      tickSpacing,
+      sqrtPrice: sqrtPriceForTickIndexReference(tickCurrentIndex),
+      feeRate: 1000,
+      liquidity: 950000n,
+    });
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(whirlpoolArgs);
+
+    const expectedStarts = expectedTickArrayStarts({ tickCurrentIndex, tickSpacing, aToB: false });
+    const expectedAddresses = await getExpectedTickArrayAddresses([...expectedStarts]);
+    const tickArrayArgs: TickArrayArgs[] = [
+      buildCustomTickArrayArgs(expectedStarts[0], [
+        { offset: 1, liquidityNet: 3000n, liquidityGross: 3000n },
+        { offset: 5, liquidityNet: -1500n, liquidityGross: 1500n },
+        { offset: 20, liquidityNet: 7000n, liquidityGross: 7000n },
+      ]),
+      buildCustomTickArrayArgs(expectedStarts[1], [
+        { offset: 0, liquidityNet: -2500n, liquidityGross: 2500n },
+        { offset: 11, liquidityNet: 4500n, liquidityGross: 4500n },
+      ]),
+      buildCustomTickArrayArgs(expectedStarts[2], [{ offset: 8, liquidityNet: 9000n, liquidityGross: 9000n }]),
+    ];
+    setTickArraysOnConnection(connection, expectedAddresses, tickArrayArgs);
+
+    const coreQuote = swapQuoteByInputToken(
+      7300n,
+      false,
+      180,
+      toCoreWhirlpool(whirlpoolArgs),
+      undefined,
+      tickArrayArgs.map(toCoreTickArray),
+      0n,
+      undefined,
+      undefined,
+    );
+
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_in',
+      input: {
+        token_in_mint: TOKEN_MINT_B,
+        token_out_mint: TOKEN_MINT_A,
+        amount_in: '7300',
+        slippage_bps: '180',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const output = view.output as Record<string, unknown>;
+
+    expect(view.derived.tick_array_starts).toEqual([...expectedStarts]);
+    expect(view.derived.tick_arrays).toEqual(expectedAddresses);
+    expect(view.derived.initialized_tick_count).toBe('6');
+    expect(view.derived.directional_initialized_tick_count).toBe('6');
+    expect(view.derived.next_initialized_tick).toEqual(
+      expect.objectContaining({
+        initialized: true,
+        tick_index: '795',
         tick_array_start_index: expectedStarts[0],
         tick_array_address: expectedAddresses[0],
       }),

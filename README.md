@@ -64,6 +64,7 @@ The harness is now green on the first comparison wave:
   - runtime matches the larger `B->A` exact-input case that previously overflowed in our simplified path
   - runtime now also matches a dense initialized `A->B` quote fixture across multiple arrays
   - runtime now matches a sparse `B->A` fixture with selected initialized ticks spread across arrays
+  - runtime now also matches non-zero current-tick fixtures, including negative `A->B` and asymmetric `B->A` setups with custom spacing
 
 That matters because the runtime is still doing this through:
 - ordered load steps
