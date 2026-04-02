@@ -1,18 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
-import { getOracleAddress, getSwapV2Instruction, getTickArrayAddress, type TickArrayArgs, type WhirlpoolArgs } from '@orca-so/whirlpools-client';
+import {
+  getIncreaseLiquidityByTokenAmountsV2Instruction,
+  getOracleAddress,
+  getPositionAddress,
+  getSwapV2Instruction,
+  getTickArrayAddress,
+  increaseLiquidityMethod,
+  type TickArrayArgs,
+  type WhirlpoolArgs,
+} from '@orca-so/whirlpools-client';
 import { address, createNoopSigner } from '@solana/kit';
 import { swapQuoteByInputToken } from '@orca-so/whirlpools-core';
 import { explainRuntimeOperation, prepareRuntimeInstruction, runRuntimeView } from '@brij-digital/apppack-runtime/runtimeOperationRuntime';
 import { previewIdlInstruction } from '@brij-digital/apppack-runtime';
 import {
+  buildPositionArgs,
   buildCustomTickArrayArgs,
   buildTickArrayArgs,
   buildWhirlpoolArgs,
   expectedTickArrayStarts,
   MEMO_PROGRAM,
   ORCA_WHIRLPOOL,
+  POSITION_MINT,
   SWAP_EXACT_IN_INPUT,
   TEST_WALLET,
   TOKEN_MINT_A,
@@ -55,6 +66,26 @@ function toCamelAccounts(accounts: Record<string, string>) {
     tickArray1: address(accounts.tick_array1),
     tickArray2: address(accounts.tick_array2),
     oracle: address(accounts.oracle),
+  };
+}
+
+function toCamelIncreaseLiquidityAccounts(accounts: Record<string, string>) {
+  return {
+    whirlpool: address(accounts.whirlpool),
+    tokenProgramA: address(accounts.token_program_a),
+    tokenProgramB: address(accounts.token_program_b),
+    memoProgram: address(accounts.memo_program),
+    positionAuthority: createNoopSigner(address(accounts.position_authority)),
+    position: address(accounts.position),
+    positionTokenAccount: address(accounts.position_token_account),
+    tokenMintA: address(accounts.token_mint_a),
+    tokenMintB: address(accounts.token_mint_b),
+    tokenOwnerAccountA: address(accounts.token_owner_account_a),
+    tokenOwnerAccountB: address(accounts.token_owner_account_b),
+    tokenVaultA: address(accounts.token_vault_a),
+    tokenVaultB: address(accounts.token_vault_b),
+    tickArrayLower: address(accounts.tick_array_lower),
+    tickArrayUpper: address(accounts.tick_array_upper),
   };
 }
 
@@ -246,6 +277,100 @@ describe('Orca runtime comparison harness', () => {
       sqrtPriceLimit: BigInt(String(prepared.args.sqrt_price_limit)),
       amountSpecifiedIsInput: Boolean(prepared.args.amount_specified_is_input),
       aToB: Boolean(prepared.args.a_to_b),
+      remainingAccountsInfo: null,
+    });
+
+    expect(runtimePreview.programId).toBe(orcaInstruction.programAddress);
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(orcaInstruction.data));
+    expect(runtimePreview.keys.map((entry) => entry.pubkey)).toEqual(
+      orcaInstruction.accounts.map((entry) => entry.address),
+    );
+  });
+
+  it('matches Orca derived accounts and low-level increaseLiquidityByTokenAmountsV2 instruction encoding', async () => {
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(
+      buildWhirlpoolArgs({
+        tickSpacing: 64,
+        tickCurrentIndex: 0,
+      }),
+    );
+
+    const [position] = await getPositionAddress(address(POSITION_MINT));
+    connection.setPosition(
+      position,
+      buildPositionArgs({
+        positionMint: POSITION_MINT,
+        tickLowerIndex: -5632,
+        tickUpperIndex: 5632,
+      }),
+    );
+    connection.setRawAccount(POSITION_MINT, TOKEN_PROGRAM);
+    connection.setRawAccount(TOKEN_MINT_A, TOKEN_PROGRAM);
+    connection.setRawAccount(TOKEN_MINT_B, TOKEN_PROGRAM);
+
+    const [tickArrayLower] = await getTickArrayAddress(address(ORCA_WHIRLPOOL), -5632);
+    const [tickArrayUpper] = await getTickArrayAddress(address(ORCA_WHIRLPOOL), 5632);
+    connection.setTickArray(tickArrayLower, buildTickArrayArgs(-5632));
+    connection.setTickArray(tickArrayUpper, buildTickArrayArgs(5632));
+
+    const method = increaseLiquidityMethod('ByTokenAmounts', {
+      tokenMaxA: 10n,
+      tokenMaxB: 12n,
+      minSqrtPrice: 1n,
+      maxSqrtPrice: 2n,
+    });
+
+    const prepared = await prepareRuntimeInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'increase_liquidity_by_token_amounts_v2',
+      input: {
+        position,
+        method,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const expectedPositionTokenAccount = getAssociatedTokenAddressSync(
+      new PublicKey(POSITION_MINT),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+    const expectedAtaA = getAssociatedTokenAddressSync(
+      new PublicKey(TOKEN_MINT_A),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+    const expectedAtaB = getAssociatedTokenAddressSync(
+      new PublicKey(TOKEN_MINT_B),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+
+    expect(prepared.accounts.memo_program).toBe(MEMO_PROGRAM);
+    expect(prepared.accounts.position_authority).toBe(TEST_WALLET);
+    expect(prepared.accounts.position).toBe(position);
+    expect(prepared.accounts.position_token_account).toBe(expectedPositionTokenAccount);
+    expect(prepared.accounts.token_owner_account_a).toBe(expectedAtaA);
+    expect(prepared.accounts.token_owner_account_b).toBe(expectedAtaB);
+    expect(prepared.accounts.tick_array_lower).toBe(tickArrayLower);
+    expect(prepared.accounts.tick_array_upper).toBe(tickArrayUpper);
+
+    const runtimePreview = await previewIdlInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      instructionName: prepared.instructionName,
+      args: prepared.args,
+      accounts: prepared.accounts,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const orcaInstruction = getIncreaseLiquidityByTokenAmountsV2Instruction({
+      ...toCamelIncreaseLiquidityAccounts(prepared.accounts),
+      method,
       remainingAccountsInfo: null,
     });
 

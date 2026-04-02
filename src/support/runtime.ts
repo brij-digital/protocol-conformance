@@ -1,7 +1,8 @@
 import path from 'node:path';
 import { PublicKey } from '@solana/web3.js';
-import type { TickArrayArgs, WhirlpoolArgs } from '@orca-so/whirlpools-client';
+import type { PositionArgs, TickArrayArgs, WhirlpoolArgs } from '@orca-so/whirlpools-client';
 import {
+  encodePositionAccount,
   encodeTickArrayAccount,
   encodeWhirlpoolAccount,
   ORCA_PROGRAM_ID,
@@ -14,14 +15,22 @@ process.env.APPPACK_RUNTIME_REGISTRY_PATH = path.resolve(
 );
 
 export class StaticAccountConnection {
-  private readonly accounts = new Map<string, Buffer>();
+  private readonly accounts = new Map<string, { data: Buffer; owner: string }>();
+
+  setRawAccount(address: string, owner: string, data: Buffer = Buffer.alloc(0)): void {
+    this.accounts.set(address, { data, owner });
+  }
 
   setWhirlpool(args: WhirlpoolArgs): void {
-    this.accounts.set(ORCA_WHIRLPOOL, encodeWhirlpoolAccount(args));
+    this.setRawAccount(ORCA_WHIRLPOOL, ORCA_PROGRAM_ID, encodeWhirlpoolAccount(args));
   }
 
   setTickArray(address: string, args: TickArrayArgs): void {
-    this.accounts.set(address, encodeTickArrayAccount(args));
+    this.setRawAccount(address, ORCA_PROGRAM_ID, encodeTickArrayAccount(args));
+  }
+
+  setPosition(address: string, args: PositionArgs): void {
+    this.setRawAccount(address, ORCA_PROGRAM_ID, encodePositionAccount(args));
   }
 
   async getAccountInfo(address: PublicKey | string): Promise<{
@@ -32,13 +41,13 @@ export class StaticAccountConnection {
     rentEpoch: number;
   } | null> {
     const key = typeof address === 'string' ? address : address.toBase58();
-    const data = this.accounts.get(key);
-    if (!data) {
+    const entry = this.accounts.get(key);
+    if (!entry) {
       return null;
     }
     return {
-      data,
-      owner: new PublicKey(ORCA_PROGRAM_ID),
+      data: entry.data,
+      owner: new PublicKey(entry.owner),
       executable: false,
       lamports: 0,
       rentEpoch: 0,

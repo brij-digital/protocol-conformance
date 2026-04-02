@@ -23,7 +23,10 @@ The first test wave targets:
 1. `swap_exact_in`
    - low-level account derivation parity
    - low-level instruction encoding parity
-2. `quote_exact_in`
+2. `increase_liquidity_by_token_amounts_v2`
+   - low-level derived-account parity from `position` state
+   - low-level instruction encoding parity
+3. `quote_exact_in`
    - tick-array derivation parity on simple and edge cases
    - exact-input quote parity on representative `A->B` and `B->A` fixtures
 
@@ -57,6 +60,9 @@ The harness is now green on the first comparison wave:
 - `swap_exact_in`
   - runtime resolves Orca-derived accounts correctly
   - runtime low-level instruction encoding matches Orca client
+- `increase_liquidity_by_token_amounts_v2`
+  - runtime derives whirlpool, token programs, owner ATAs, and position tick arrays from onchain `Position` + `Whirlpool` state
+  - runtime low-level instruction encoding matches Orca client from the same `method` input shape the SDK uses
 - `quote_exact_in`
   - runtime matches Orca tick-array derivation for the simple `A->B` case
   - runtime matches the `B->A` edge fixture where Orca core returns zero output
@@ -83,5 +89,5 @@ What this repo shows now:
 
 The natural next candidates are:
 - more quote fixtures with different fee tiers, current ticks, and price positions inside the tick range
-- liquidity-management flows
+- more liquidity-management flows
 - additional multi-step write paths

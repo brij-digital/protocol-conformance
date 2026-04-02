@@ -1,5 +1,13 @@
 import { PublicKey } from '@solana/web3.js';
-import { getTickArrayEncoder, getWhirlpoolEncoder, type TickArrayArgs, type TickArgs, type WhirlpoolArgs } from '@orca-so/whirlpools-client';
+import {
+  getPositionEncoder,
+  getTickArrayEncoder,
+  getWhirlpoolEncoder,
+  type PositionArgs,
+  type TickArrayArgs,
+  type TickArgs,
+  type WhirlpoolArgs,
+} from '@orca-so/whirlpools-client';
 import { address } from '@solana/kit';
 
 export const ORCA_PROGRAM_ID = 'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc';
@@ -9,6 +17,7 @@ export const TOKEN_MINT_A = 'So11111111111111111111111111111111111111112';
 export const TOKEN_MINT_B = '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo';
 export const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 export const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
+export const POSITION_MINT = 'HqoV7Qv27REUtmd9UKSJGGmCRNx3531t33bDG1BUfo9K';
 export const TEST_WALLET = '11111111111111111111111111111111';
 
 const FIXED_REWARD_MINTS = [
@@ -63,6 +72,34 @@ export function buildWhirlpoolArgs(options?: {
 
 export function encodeWhirlpoolAccount(args: WhirlpoolArgs): Buffer {
   return Buffer.from(getWhirlpoolEncoder().encode(args));
+}
+
+export function buildPositionArgs(options?: {
+  whirlpool?: string;
+  positionMint?: string;
+  liquidity?: bigint;
+  tickLowerIndex?: number;
+  tickUpperIndex?: number;
+}): PositionArgs {
+  return {
+    whirlpool: address(options?.whirlpool ?? ORCA_WHIRLPOOL),
+    positionMint: address(options?.positionMint ?? POSITION_MINT),
+    liquidity: options?.liquidity ?? 0n,
+    tickLowerIndex: options?.tickLowerIndex ?? -5632,
+    tickUpperIndex: options?.tickUpperIndex ?? 5632,
+    feeGrowthCheckpointA: 0n,
+    feeOwedA: 0n,
+    feeGrowthCheckpointB: 0n,
+    feeOwedB: 0n,
+    rewardInfos: Array.from({ length: 3 }, () => ({
+      growthInsideCheckpoint: 0n,
+      amountOwed: 0n,
+    })),
+  };
+}
+
+export function encodePositionAccount(args: PositionArgs): Buffer {
+  return Buffer.from(getPositionEncoder().encode(args));
 }
 
 export function buildBlankTick(options?: {
