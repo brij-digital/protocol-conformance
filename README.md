@@ -26,7 +26,16 @@ The first test wave targets:
 2. `increase_liquidity_by_token_amounts_v2`
    - low-level derived-account parity from `position` state
    - low-level instruction encoding parity
-3. `quote_exact_in`
+3. `decrease_liquidity_v2`
+   - low-level derived-account parity from `position` state
+   - low-level instruction encoding parity
+4. `collect_fees_v2`
+   - low-level derived-account parity from `position` + `whirlpool` state
+   - low-level instruction encoding parity
+5. `collect_reward_v2`
+   - reward-account selection parity from `reward_index`
+   - low-level instruction encoding parity
+6. `quote_exact_in`
    - tick-array derivation parity on simple and edge cases
    - exact-input quote parity on representative `A->B` and `B->A` fixtures
 
@@ -63,6 +72,12 @@ The harness is now green on the first comparison wave:
 - `increase_liquidity_by_token_amounts_v2`
   - runtime derives whirlpool, token programs, owner ATAs, and position tick arrays from onchain `Position` + `Whirlpool` state
   - runtime low-level instruction encoding matches Orca client from the same `method` input shape the SDK uses
+- `decrease_liquidity_v2`
+  - runtime reuses the same position-backed derivation path and matches Orca on both accounts and instruction bytes
+- `collect_fees_v2`
+  - runtime derives the fee collection accounts from `Position` + `Whirlpool` state and matches Orca instruction encoding
+- `collect_reward_v2`
+  - runtime selects the correct reward mint/vault from `reward_index`, derives the owner ATA, and matches Orca instruction encoding
 - `quote_exact_in`
   - runtime matches Orca tick-array derivation for the simple `A->B` case
   - runtime matches the `B->A` edge fixture where Orca core returns zero output
@@ -89,5 +104,5 @@ What this repo shows now:
 
 The natural next candidates are:
 - more quote fixtures with different fee tiers, current ticks, and price positions inside the tick range
-- more liquidity-management flows
+- position update / fee-refresh style writes
 - additional multi-step write paths

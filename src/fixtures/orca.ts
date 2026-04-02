@@ -20,13 +20,13 @@ export const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
 export const POSITION_MINT = 'HqoV7Qv27REUtmd9UKSJGGmCRNx3531t33bDG1BUfo9K';
 export const TEST_WALLET = '11111111111111111111111111111111';
 
-const FIXED_REWARD_MINTS = [
+export const REWARD_MINTS = [
   '11111111111111111111111111111112',
   '11111111111111111111111111111114',
   '11111111111111111111111111111116',
 ];
 
-const FIXED_REWARD_VAULTS = [
+export const REWARD_VAULTS = [
   '11111111111111111111111111111113',
   '11111111111111111111111111111115',
   '11111111111111111111111111111117',
@@ -60,9 +60,9 @@ export function buildWhirlpoolArgs(options?: {
     tokenVaultB: address(PublicKey.default.toBase58()),
     feeGrowthGlobalB: 0n,
     rewardLastUpdatedTimestamp: 0n,
-    rewardInfos: FIXED_REWARD_MINTS.map((mint, index) => ({
+    rewardInfos: REWARD_MINTS.map((mint, index) => ({
       mint: address(mint),
-      vault: address(FIXED_REWARD_VAULTS[index]),
+      vault: address(REWARD_VAULTS[index]),
       extension: new Uint8Array(32),
       emissionsPerSecondX64: 0n,
       growthGlobalX64: 0n,

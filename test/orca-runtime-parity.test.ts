@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
 import {
+  getCollectFeesV2Instruction,
+  getCollectRewardV2Instruction,
+  getDecreaseLiquidityV2Instruction,
   getIncreaseLiquidityByTokenAmountsV2Instruction,
   getOracleAddress,
   getPositionAddress,
@@ -24,6 +27,8 @@ import {
   MEMO_PROGRAM,
   ORCA_WHIRLPOOL,
   POSITION_MINT,
+  REWARD_MINTS,
+  REWARD_VAULTS,
   SWAP_EXACT_IN_INPUT,
   TEST_WALLET,
   TOKEN_MINT_A,
@@ -89,6 +94,58 @@ function toCamelIncreaseLiquidityAccounts(accounts: Record<string, string>) {
   };
 }
 
+function toCamelDecreaseLiquidityAccounts(accounts: Record<string, string>) {
+  return {
+    whirlpool: address(accounts.whirlpool),
+    tokenProgramA: address(accounts.token_program_a),
+    tokenProgramB: address(accounts.token_program_b),
+    memoProgram: address(accounts.memo_program),
+    positionAuthority: createNoopSigner(address(accounts.position_authority)),
+    position: address(accounts.position),
+    positionTokenAccount: address(accounts.position_token_account),
+    tokenMintA: address(accounts.token_mint_a),
+    tokenMintB: address(accounts.token_mint_b),
+    tokenOwnerAccountA: address(accounts.token_owner_account_a),
+    tokenOwnerAccountB: address(accounts.token_owner_account_b),
+    tokenVaultA: address(accounts.token_vault_a),
+    tokenVaultB: address(accounts.token_vault_b),
+    tickArrayLower: address(accounts.tick_array_lower),
+    tickArrayUpper: address(accounts.tick_array_upper),
+  };
+}
+
+function toCamelCollectFeesAccounts(accounts: Record<string, string>) {
+  return {
+    whirlpool: address(accounts.whirlpool),
+    positionAuthority: createNoopSigner(address(accounts.position_authority)),
+    position: address(accounts.position),
+    positionTokenAccount: address(accounts.position_token_account),
+    tokenMintA: address(accounts.token_mint_a),
+    tokenMintB: address(accounts.token_mint_b),
+    tokenOwnerAccountA: address(accounts.token_owner_account_a),
+    tokenVaultA: address(accounts.token_vault_a),
+    tokenOwnerAccountB: address(accounts.token_owner_account_b),
+    tokenVaultB: address(accounts.token_vault_b),
+    tokenProgramA: address(accounts.token_program_a),
+    tokenProgramB: address(accounts.token_program_b),
+    memoProgram: address(accounts.memo_program),
+  };
+}
+
+function toCamelCollectRewardAccounts(accounts: Record<string, string>) {
+  return {
+    whirlpool: address(accounts.whirlpool),
+    positionAuthority: createNoopSigner(address(accounts.position_authority)),
+    position: address(accounts.position),
+    positionTokenAccount: address(accounts.position_token_account),
+    rewardOwnerAccount: address(accounts.reward_owner_account),
+    rewardMint: address(accounts.reward_mint),
+    rewardVault: address(accounts.reward_vault),
+    rewardTokenProgram: address(accounts.reward_token_program),
+    memoProgram: address(accounts.memo_program),
+  };
+}
+
 function toCoreWhirlpoolFixture(tickCurrentIndex: number) {
   return {
     feeTierIndexSeed: new Uint8Array([64, 0]),
@@ -138,6 +195,37 @@ function setTickArraysOnConnection(
   addresses.forEach((tickArrayAddress, index) => {
     connection.setTickArray(tickArrayAddress, tickArrayArgs[index]);
   });
+}
+
+async function buildPositionBackedConnection(options?: {
+  tickLowerIndex?: number;
+  tickUpperIndex?: number;
+  tickSpacing?: number;
+}) {
+  const connection = new StaticAccountConnection();
+  connection.setWhirlpool(
+    buildWhirlpoolArgs({
+      tickSpacing: options?.tickSpacing ?? 64,
+      tickCurrentIndex: 0,
+    }),
+  );
+
+  const [position] = await getPositionAddress(address(POSITION_MINT));
+  const tickLowerIndex = options?.tickLowerIndex ?? -5632;
+  const tickUpperIndex = options?.tickUpperIndex ?? 5632;
+  connection.setPosition(
+    position,
+    buildPositionArgs({
+      positionMint: POSITION_MINT,
+      tickLowerIndex,
+      tickUpperIndex,
+    }),
+  );
+  connection.setRawAccount(POSITION_MINT, TOKEN_PROGRAM);
+  connection.setRawAccount(TOKEN_MINT_A, TOKEN_PROGRAM);
+  connection.setRawAccount(TOKEN_MINT_B, TOKEN_PROGRAM);
+
+  return { connection, position, tickLowerIndex, tickUpperIndex };
 }
 
 function tickIndexToSqrtPriceX64Reference(tickIndex: number): string {
@@ -288,26 +376,7 @@ describe('Orca runtime comparison harness', () => {
   });
 
   it('matches Orca derived accounts and low-level increaseLiquidityByTokenAmountsV2 instruction encoding', async () => {
-    const connection = new StaticAccountConnection();
-    connection.setWhirlpool(
-      buildWhirlpoolArgs({
-        tickSpacing: 64,
-        tickCurrentIndex: 0,
-      }),
-    );
-
-    const [position] = await getPositionAddress(address(POSITION_MINT));
-    connection.setPosition(
-      position,
-      buildPositionArgs({
-        positionMint: POSITION_MINT,
-        tickLowerIndex: -5632,
-        tickUpperIndex: 5632,
-      }),
-    );
-    connection.setRawAccount(POSITION_MINT, TOKEN_PROGRAM);
-    connection.setRawAccount(TOKEN_MINT_A, TOKEN_PROGRAM);
-    connection.setRawAccount(TOKEN_MINT_B, TOKEN_PROGRAM);
+    const { connection, position } = await buildPositionBackedConnection();
 
     const [tickArrayLower] = await getTickArrayAddress(address(ORCA_WHIRLPOOL), -5632);
     const [tickArrayUpper] = await getTickArrayAddress(address(ORCA_WHIRLPOOL), 5632);
@@ -371,6 +440,194 @@ describe('Orca runtime comparison harness', () => {
     const orcaInstruction = getIncreaseLiquidityByTokenAmountsV2Instruction({
       ...toCamelIncreaseLiquidityAccounts(prepared.accounts),
       method,
+      remainingAccountsInfo: null,
+    });
+
+    expect(runtimePreview.programId).toBe(orcaInstruction.programAddress);
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(orcaInstruction.data));
+    expect(runtimePreview.keys.map((entry) => entry.pubkey)).toEqual(
+      orcaInstruction.accounts.map((entry) => entry.address),
+    );
+  });
+
+  it('matches Orca derived accounts and low-level decreaseLiquidityV2 instruction encoding', async () => {
+    const { connection, position } = await buildPositionBackedConnection();
+
+    const [tickArrayLower] = await getTickArrayAddress(address(ORCA_WHIRLPOOL), -5632);
+    const [tickArrayUpper] = await getTickArrayAddress(address(ORCA_WHIRLPOOL), 5632);
+    connection.setTickArray(tickArrayLower, buildTickArrayArgs(-5632));
+    connection.setTickArray(tickArrayUpper, buildTickArrayArgs(5632));
+
+    const prepared = await prepareRuntimeInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'decrease_liquidity_v2',
+      input: {
+        position,
+        liquidity_amount: '42',
+        token_min_a: '10',
+        token_min_b: '12',
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const expectedPositionTokenAccount = getAssociatedTokenAddressSync(
+      new PublicKey(POSITION_MINT),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+    const expectedAtaA = getAssociatedTokenAddressSync(
+      new PublicKey(TOKEN_MINT_A),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+    const expectedAtaB = getAssociatedTokenAddressSync(
+      new PublicKey(TOKEN_MINT_B),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+
+    expect(prepared.accounts.memo_program).toBe(MEMO_PROGRAM);
+    expect(prepared.accounts.position_authority).toBe(TEST_WALLET);
+    expect(prepared.accounts.position_token_account).toBe(expectedPositionTokenAccount);
+    expect(prepared.accounts.token_owner_account_a).toBe(expectedAtaA);
+    expect(prepared.accounts.token_owner_account_b).toBe(expectedAtaB);
+    expect(prepared.accounts.tick_array_lower).toBe(tickArrayLower);
+    expect(prepared.accounts.tick_array_upper).toBe(tickArrayUpper);
+
+    const runtimePreview = await previewIdlInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      instructionName: prepared.instructionName,
+      args: prepared.args,
+      accounts: prepared.accounts,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const orcaInstruction = getDecreaseLiquidityV2Instruction({
+      ...toCamelDecreaseLiquidityAccounts(prepared.accounts),
+      liquidityAmount: 42n,
+      tokenMinA: 10n,
+      tokenMinB: 12n,
+      remainingAccountsInfo: null,
+    });
+
+    expect(runtimePreview.programId).toBe(orcaInstruction.programAddress);
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(orcaInstruction.data));
+    expect(runtimePreview.keys.map((entry) => entry.pubkey)).toEqual(
+      orcaInstruction.accounts.map((entry) => entry.address),
+    );
+  });
+
+  it('matches Orca derived accounts and low-level collectFeesV2 instruction encoding', async () => {
+    const { connection, position } = await buildPositionBackedConnection();
+
+    const prepared = await prepareRuntimeInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'collect_fees_v2',
+      input: {
+        position,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const expectedPositionTokenAccount = getAssociatedTokenAddressSync(
+      new PublicKey(POSITION_MINT),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+    const expectedAtaA = getAssociatedTokenAddressSync(
+      new PublicKey(TOKEN_MINT_A),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+    const expectedAtaB = getAssociatedTokenAddressSync(
+      new PublicKey(TOKEN_MINT_B),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+
+    expect(prepared.accounts.memo_program).toBe(MEMO_PROGRAM);
+    expect(prepared.accounts.position_authority).toBe(TEST_WALLET);
+    expect(prepared.accounts.position_token_account).toBe(expectedPositionTokenAccount);
+    expect(prepared.accounts.token_owner_account_a).toBe(expectedAtaA);
+    expect(prepared.accounts.token_owner_account_b).toBe(expectedAtaB);
+
+    const runtimePreview = await previewIdlInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      instructionName: prepared.instructionName,
+      args: prepared.args,
+      accounts: prepared.accounts,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const orcaInstruction = getCollectFeesV2Instruction({
+      ...toCamelCollectFeesAccounts(prepared.accounts),
+      remainingAccountsInfo: null,
+    });
+
+    expect(runtimePreview.programId).toBe(orcaInstruction.programAddress);
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(orcaInstruction.data));
+    expect(runtimePreview.keys.map((entry) => entry.pubkey)).toEqual(
+      orcaInstruction.accounts.map((entry) => entry.address),
+    );
+  });
+
+  it('matches Orca derived accounts and low-level collectRewardV2 instruction encoding', async () => {
+    const { connection, position } = await buildPositionBackedConnection();
+    const rewardIndex = 1;
+    const rewardMint = REWARD_MINTS[rewardIndex];
+    connection.setRawAccount(rewardMint, TOKEN_PROGRAM);
+
+    const prepared = await prepareRuntimeInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'collect_reward_v2',
+      input: {
+        position,
+        reward_index: String(rewardIndex),
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const expectedPositionTokenAccount = getAssociatedTokenAddressSync(
+      new PublicKey(POSITION_MINT),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+    const expectedRewardAta = getAssociatedTokenAddressSync(
+      new PublicKey(rewardMint),
+      new PublicKey(TEST_WALLET),
+      false,
+      new PublicKey(TOKEN_PROGRAM),
+    ).toBase58();
+
+    expect(prepared.accounts.memo_program).toBe(MEMO_PROGRAM);
+    expect(prepared.accounts.position_authority).toBe(TEST_WALLET);
+    expect(prepared.accounts.position_token_account).toBe(expectedPositionTokenAccount);
+    expect(prepared.accounts.reward_mint).toBe(rewardMint);
+    expect(prepared.accounts.reward_vault).toBe(REWARD_VAULTS[rewardIndex]);
+    expect(prepared.accounts.reward_token_program).toBe(TOKEN_PROGRAM);
+    expect(prepared.accounts.reward_owner_account).toBe(expectedRewardAta);
+
+    const runtimePreview = await previewIdlInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      instructionName: prepared.instructionName,
+      args: prepared.args,
+      accounts: prepared.accounts,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const orcaInstruction = getCollectRewardV2Instruction({
+      ...toCamelCollectRewardAccounts(prepared.accounts),
+      rewardIndex,
       remainingAccountsInfo: null,
     });
 
