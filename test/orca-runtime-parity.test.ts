@@ -222,7 +222,10 @@ describe('Orca runtime comparison harness', () => {
         start_tick_index: expectedStarts[index],
       })),
     );
+    expect(view.derived.initialized_tick_count).toBe('0');
+    expect(view.derived.directional_initialized_tick_count).toBe('0');
     expect(view.derived.first_initialized_tick).toBeNull();
+    expect(view.derived.next_initialized_tick).toBeNull();
     expect(view.derived.initialized_liquidity_gross_total).toBe('0');
     expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
     expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
@@ -272,6 +275,9 @@ describe('Orca runtime comparison harness', () => {
     expect(view.derived.tick_array_starts).toEqual([...expectedStarts]);
     expect(view.derived.tick_arrays).toEqual(expectedAddresses);
     expect(getLoadedTickArrays(view).map((entry) => entry.start_tick_index)).toEqual([...expectedStarts]);
+    expect(view.derived.initialized_tick_count).toBe('0');
+    expect(view.derived.directional_initialized_tick_count).toBe('0');
+    expect(view.derived.next_initialized_tick).toBeNull();
     expect(coreQuote.tokenEstOut.toString()).toBe('0');
     expect(coreQuote.tokenMinOut.toString()).toBe('0');
     expect(output.estimated_out).not.toBe(coreQuote.tokenEstOut.toString());
@@ -365,7 +371,18 @@ describe('Orca runtime comparison harness', () => {
         start_tick_index: expectedStarts[index],
       })),
     );
+    expect(view.derived.initialized_tick_count).toBe(String(3 * 88));
     expect((view.derived.first_initialized_tick as Record<string, unknown>).initialized).toBe(true);
+    expect((view.derived.first_initialized_tick as Record<string, unknown>).tick_index).toBe('0');
+    expect(view.derived.directional_initialized_tick_count).toBe(String(3 * 88 - 1));
+    expect(view.derived.next_initialized_tick).toEqual(
+      expect.objectContaining({
+        initialized: true,
+        tick_index: '2',
+        tick_array_start_index: 0,
+        tick_array_address: expectedAddresses[0],
+      }),
+    );
     expect(view.derived.initialized_liquidity_gross_total).toBe(String(3 * 88 * 1000));
     expect(loadedTickArrays.every((entry) => Array.isArray(entry.ticks))).toBe(true);
     expect(coreQuote.tokenEstOut.toString()).toBe('929');
