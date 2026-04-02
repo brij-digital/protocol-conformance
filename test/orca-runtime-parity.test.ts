@@ -15,7 +15,7 @@ import {
   type WhirlpoolArgs,
 } from '@orca-so/whirlpools-client';
 import { address, createNoopSigner } from '@solana/kit';
-import { swapQuoteByInputToken } from '@orca-so/whirlpools-core';
+import { swapQuoteByInputToken, swapQuoteByOutputToken } from '@orca-so/whirlpools-core';
 import { explainRuntimeOperation, prepareRuntimeInstruction, runRuntimeView } from '@brij-digital/apppack-runtime/runtimeOperationRuntime';
 import { previewIdlInstruction } from '@brij-digital/apppack-runtime';
 import {
@@ -1349,5 +1349,112 @@ describe('Orca runtime comparison harness', () => {
 
     expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
     expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
+  });
+
+  it('matches Orca A->B exact-output quote semantics on the upstream smoke-style fixture', async () => {
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex: 0,
+      tickSpacing: 2,
+      sqrtPrice: 1n << 64n,
+      feeRate: 3000,
+      liquidity: 265000n,
+    });
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(whirlpoolArgs);
+
+    const expectedStarts = expectedTickArrayStarts({ tickCurrentIndex: 0, tickSpacing: 2, aToB: true });
+    const expectedAddresses = await getExpectedTickArrayAddresses([...expectedStarts]);
+    const tickArrayArgs = expectedStarts.map((startIndex) =>
+      buildTickArrayArgs(startIndex, { initialized: true, positiveLiquidity: startIndex < 0 }),
+    );
+    setTickArraysOnConnection(connection, expectedAddresses, tickArrayArgs);
+
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_out',
+      input: {
+        token_in_mint: TOKEN_MINT_A,
+        token_out_mint: TOKEN_MINT_B,
+        amount_out: '1000',
+        slippage_bps: '1000',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const coreQuote = swapQuoteByOutputToken(
+      1000n,
+      true,
+      1000,
+      toCoreWhirlpool(whirlpoolArgs),
+      undefined,
+      tickArrayArgs.map(toCoreTickArray),
+      0n,
+      undefined,
+      undefined,
+    );
+    const output = view.output as Record<string, unknown>;
+
+    expect(view.derived.tick_array_starts).toEqual([...expectedStarts]);
+    expect(view.derived.tick_arrays).toEqual(expectedAddresses);
+    expect(getLoadedTickArrays(view).map((entry) => entry.start_tick_index)).toEqual([...expectedStarts]);
+    expect(output.amount_out).toBe('1000');
+    expect(output.estimated_in).toBe(coreQuote.tokenEstIn.toString());
+    expect(output.maximum_in).toBe(coreQuote.tokenMaxIn.toString());
+    expect(output.pool_fee_bps).toBe(coreQuote.tradeFeeRateMin);
+  });
+
+  it('matches Orca A->B exact-output quote semantics for smaller output sizes on the same smoke-style fixture', async () => {
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex: 0,
+      tickSpacing: 2,
+      sqrtPrice: 1n << 64n,
+      feeRate: 3000,
+      liquidity: 265000n,
+    });
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(whirlpoolArgs);
+
+    const expectedStarts = expectedTickArrayStarts({ tickCurrentIndex: 0, tickSpacing: 2, aToB: true });
+    const expectedAddresses = await getExpectedTickArrayAddresses([...expectedStarts]);
+    const tickArrayArgs = expectedStarts.map((startIndex) =>
+      buildTickArrayArgs(startIndex, { initialized: true, positiveLiquidity: startIndex < 0 }),
+    );
+    setTickArraysOnConnection(connection, expectedAddresses, tickArrayArgs);
+
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_out',
+      input: {
+        token_in_mint: TOKEN_MINT_A,
+        token_out_mint: TOKEN_MINT_B,
+        amount_out: '500',
+        slippage_bps: '1000',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const coreQuote = swapQuoteByOutputToken(
+      500n,
+      true,
+      1000,
+      toCoreWhirlpool(whirlpoolArgs),
+      undefined,
+      tickArrayArgs.map(toCoreTickArray),
+      0n,
+      undefined,
+      undefined,
+    );
+    const output = view.output as Record<string, unknown>;
+
+    expect(view.derived.tick_array_starts).toEqual([...expectedStarts]);
+    expect(view.derived.tick_arrays).toEqual(expectedAddresses);
+    expect(getLoadedTickArrays(view).map((entry) => entry.start_tick_index)).toEqual([...expectedStarts]);
+    expect(output.amount_out).toBe('500');
+    expect(output.estimated_in).toBe(coreQuote.tokenEstIn.toString());
+    expect(output.maximum_in).toBe(coreQuote.tokenMaxIn.toString());
   });
 });

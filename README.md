@@ -38,6 +38,8 @@ The first test wave targets:
 6. `quote_exact_in`
    - tick-array derivation parity on simple and edge cases
    - exact-input quote parity on representative `A->B` and `B->A` fixtures
+7. `quote_exact_out`
+   - exact-output quote parity on realistic upstream-style `A->B` fixtures
 
 ## Upstream reference
 
@@ -87,6 +89,9 @@ The harness is now green on the first comparison wave:
   - runtime now matches a sparse `B->A` fixture with selected initialized ticks spread across arrays
   - runtime now also matches non-zero current-tick fixtures, including negative `A->B` and asymmetric `B->A` setups with custom spacing
   - runtime now also matches off-grid `sqrtPrice` fixtures and deeper multi-array crossings in both directions
+- `quote_exact_out`
+  - runtime matches Orca exact-output quoting on upstream smoke-style `A->B` fixtures
+  - the harness currently validates multiple output sizes on the same realistic pool shape
 
 That matters because the runtime is still doing this through:
 - ordered load steps
@@ -103,6 +108,6 @@ What this repo shows now:
 - the next comparison wave should broaden coverage, not just re-argue the core shape of the runtime spec
 
 The natural next candidates are:
-- more quote fixtures with different fee tiers, current ticks, and price positions inside the tick range
+- broaden exact-output coverage, especially `B->A`, with more realistic fixture shapes
 - position update / fee-refresh style writes
 - additional multi-step write paths
