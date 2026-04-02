@@ -90,18 +90,6 @@ function getLoadedTickArrays(view: Awaited<ReturnType<typeof runRuntimeView>>): 
   return raw as LoadedTickArray[];
 }
 
-function currentSpecSpotQuoteBToA(amountIn: bigint) {
-  const sqrtPrice = 32523523532n;
-  const q64 = 340282366920938463463374607431768211456n;
-  const spotPriceNumerator = sqrtPrice * sqrtPrice;
-  const estimatedOut = (amountIn * q64) / spotPriceNumerator;
-  const minimumOut = (estimatedOut * 9900n) / 10000n;
-  return {
-    estimatedOut,
-    minimumOut,
-  };
-}
-
 function tickIndexToSqrtPriceX64Reference(tickIndex: number): string {
   if (tickIndex >= 0) {
     let ratio =
@@ -290,13 +278,15 @@ describe('Orca runtime comparison harness', () => {
     expect(view.derived.directional_initialized_tick_count).toBe('0');
     expect(view.derived.first_initialized_tick).toBeNull();
     expect(view.derived.next_initialized_tick).toBeNull();
-    expect(view.derived.next_swap_target_tick).toEqual({
-      initialized: false,
-      terminal: true,
-      tick_index: String(expectedStarts[2]),
-      tick_array_start_index: expectedStarts[2],
-      tick_array_address: expectedAddresses[2],
-    });
+    expect(view.derived.next_swap_target_tick).toEqual(
+      expect.objectContaining({
+        initialized: false,
+        terminal: true,
+        tick_index: String(expectedStarts[2]),
+        tick_array_start_index: expectedStarts[2],
+        tick_array_address: expectedAddresses[2],
+      }),
+    );
     expect(view.derived.next_swap_target_tick_sqrt_price_x64).toBe(
       tickIndexToSqrtPriceX64Reference(expectedStarts[2]),
     );
@@ -306,7 +296,7 @@ describe('Orca runtime comparison harness', () => {
     expect(output.pool_fee_bps).toBe(coreQuote.tradeFeeRateMin);
   });
 
-  it('matches Orca B->A tick-array derivation on the current edge fixture, but the quote still diverges', async () => {
+  it('matches Orca B->A tick-array derivation and zero-output quote on the current edge fixture', async () => {
     const tickCurrentIndex = 64 * 88 - 64;
     const connection = new StaticAccountConnection();
     connection.setWhirlpool(buildWhirlpoolArgs({ tickCurrentIndex }));
@@ -352,23 +342,25 @@ describe('Orca runtime comparison harness', () => {
     expect(view.derived.initialized_tick_count).toBe('0');
     expect(view.derived.directional_initialized_tick_count).toBe('0');
     expect(view.derived.next_initialized_tick).toBeNull();
-    expect(view.derived.next_swap_target_tick).toEqual({
-      initialized: false,
-      terminal: true,
-      tick_index: '22464',
-      tick_array_start_index: expectedStarts[2],
-      tick_array_address: expectedAddresses[2],
-    });
+    expect(view.derived.next_swap_target_tick).toEqual(
+      expect.objectContaining({
+        initialized: false,
+        terminal: true,
+        tick_index: '22464',
+        tick_array_start_index: expectedStarts[2],
+        tick_array_address: expectedAddresses[2],
+      }),
+    );
     expect(view.derived.next_swap_target_tick_sqrt_price_x64).toBe(
       tickIndexToSqrtPriceX64Reference(22464),
     );
     expect(coreQuote.tokenEstOut.toString()).toBe('0');
     expect(coreQuote.tokenMinOut.toString()).toBe('0');
-    expect(output.estimated_out).not.toBe(coreQuote.tokenEstOut.toString());
-    expect(output.minimum_out).not.toBe(coreQuote.tokenMinOut.toString());
+    expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
+    expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
   });
 
-  it('shows the current boundary even after loading initialized tick arrays that Orca core uses for quote semantics', async () => {
+  it('matches Orca quote semantics after loading initialized tick arrays', async () => {
     const connection = new StaticAccountConnection();
     connection.setWhirlpool(
       buildWhirlpoolArgs({
@@ -482,11 +474,11 @@ describe('Orca runtime comparison harness', () => {
     expect(loadedTickArrays.every((entry) => Array.isArray(entry.ticks))).toBe(true);
     expect(coreQuote.tokenEstOut.toString()).toBe('929');
     expect(coreQuote.tokenMinOut.toString()).toBe('836');
-    expect(output.estimated_out).toBe('1000');
-    expect(output.minimum_out).toBe('900');
+    expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
+    expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
   });
 
-  it('documents the current B->A overflow boundary for larger inputs', async () => {
+  it('matches Orca B->A quote semantics for larger exact-input amounts', async () => {
     const tickCurrentIndex = 64 * 88 - 64;
     const connection = new StaticAccountConnection();
     connection.setWhirlpool(buildWhirlpoolArgs({ tickCurrentIndex }));
@@ -509,28 +501,25 @@ describe('Orca runtime comparison harness', () => {
       undefined,
       undefined,
     );
-    const specQuote = currentSpecSpotQuoteBToA(1000n);
-
     expect(coreQuote.tokenEstOut.toString()).toBe('17445383495056910001');
     expect(coreQuote.tokenMinOut.toString()).toBe('17270929660106340900');
-    expect(specQuote.estimatedOut > 18446744073709551615n).toBe(true);
-    expect(specQuote.minimumOut > 18446744073709551615n).toBe(true);
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_in',
+      input: {
+        token_in_mint: TOKEN_MINT_B,
+        token_out_mint: TOKEN_MINT_A,
+        amount_in: '1000',
+        slippage_bps: '100',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const output = view.output as Record<string, unknown>;
 
-    await expect(
-      runRuntimeView({
-        protocolId: 'orca-whirlpool-mainnet',
-        operationId: 'quote_exact_in',
-        input: {
-          token_in_mint: TOKEN_MINT_B,
-          token_out_mint: TOKEN_MINT_A,
-          amount_in: '1000',
-          slippage_bps: '100',
-          whirlpool: ORCA_WHIRLPOOL,
-          unwrap_sol_output: false,
-        },
-        connection: connection as never,
-        walletPublicKey: getTestWallet(),
-      }),
-    ).rejects.toThrow(/byte array longer than desired length/i);
+    expect(output.estimated_out).toBe(coreQuote.tokenEstOut.toString());
+    expect(output.minimum_out).toBe(coreQuote.tokenMinOut.toString());
   });
 });

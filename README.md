@@ -24,8 +24,8 @@ The first test wave targets:
    - low-level account derivation parity
    - low-level instruction encoding parity
 2. `quote_exact_in`
-   - tick-array derivation parity on a simple case
-   - an explicit boundary probe for a B->A edge case
+   - tick-array derivation parity on simple and edge cases
+   - exact-input quote parity on representative `A->B` and `B->A` fixtures
 
 ## Upstream reference
 
@@ -46,56 +46,38 @@ npm test
 
 ## What success means today
 
-- Green tests where the current runtime already matches Orca
-- Explicit tests that show where the current runtime still breaks or diverges
-
-That is the point of this repo: turn runtime/spec discussion into concrete parity evidence.
+- Green tests where the runtime matches Orca SDK behavior directly
+- No fallback path hiding quote mismatches
+- Enough coverage to tell whether the remaining gap is spec/runtime expressiveness or just missing implementation
 
 ## Current findings
 
-The initial harness already shows both parity and a real boundary:
+The harness is now green on the first comparison wave:
 
-- `swap_exact_in`:
+- `swap_exact_in`
   - runtime resolves Orca-derived accounts correctly
   - runtime low-level instruction encoding matches Orca client
-- `quote_exact_in`:
-  - runtime matches Orca tick-array derivation for a simple A->B case
-  - runtime now also matches the expected B->A tick-array derivation on the current edge fixture
-  - runtime can now execute `quote_exact_in` as an ordered step pipeline:
-    - decode whirlpool
-    - derive tick-array PDAs
-    - decode those derived tick-array accounts
-    - then run quote math
-  - a stronger smoke-style case now proves the next boundary clearly:
-    - the runtime loads initialized tick arrays successfully
-    - Orca core uses those ticks and returns `929 / 836`
-    - the current runtime quote still returns `1000 / 900`
-  - but the current B->A quote math still diverges from Orca core on that edge fixture
-  - for larger B->A inputs on that fixture, the current runtime quote path overflows before instruction preview, while Orca core still returns a valid quote
+- `quote_exact_in`
+  - runtime matches Orca tick-array derivation for the simple `A->B` case
+  - runtime matches the `B->A` edge fixture where Orca core returns zero output
+  - runtime matches a stronger `B->A` fixture with initialized ticks, including the `929 / 836` quote from Orca core
+  - runtime matches the larger `B->A` exact-input case that previously overflowed in our simplified path
 
-That is exactly the signal we want:
-- green where the runtime is already faithful
-- a precise boundary where account derivation is correct but quote semantics are still off
-- no fallback path hiding the failure
+That matters because the runtime is still doing this through:
+- ordered load steps
+- pure compute transforms
+- no protocol-specific low-level CLMM primitive
+- no fallback path
 
-## Current boundary read
+## Current read
 
-What the harness suggests right now:
+What this repo shows now:
 
-- the current runtime model is already good enough for:
-  - deterministic account derivation
-  - instruction assembly
-  - simple quote flows
-- the current gap is narrower than that:
-  - on the current Orca `B->A` edge fixture, we can derive the correct tick-array PDAs
-  - on a stronger smoke-style case, we can also load initialized tick arrays correctly
-  - but the current quote transform still uses simplified math that diverges from Orca core
-  - that means the remaining problem is no longer load sequencing
-  - it is the expressiveness of the current pure compute layer for real swap math
-  - for larger inputs on that same fixture, that simplified path overflows before instruction preview
+- the runtime model can already cover a meaningful Orca quote surface with generic compute building blocks
+- the step pipeline and pure compute model are viable against a real protocol
+- the next comparison wave should broaden coverage, not just re-argue the core shape of the runtime spec
 
-So the current red zone is not "runtime cannot do Orca".
-It is more specifically:
-
-- the current spec/runtime combination does not yet reproduce Orca's exact quote semantics on harder swap paths
-- and the harness now isolates that boundary without adding any fallback path
+The natural next candidates are:
+- more quote fixtures
+- liquidity-management flows
+- additional multi-step write paths
