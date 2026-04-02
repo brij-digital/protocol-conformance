@@ -1457,4 +1457,155 @@ describe('Orca runtime comparison harness', () => {
     expect(output.estimated_in).toBe(coreQuote.tokenEstIn.toString());
     expect(output.maximum_in).toBe(coreQuote.tokenMaxIn.toString());
   });
+
+  it('matches Orca B->A exact-output quote semantics on the smoke-style fixture via a widened core reference window', async () => {
+    const tickSpacing = 2;
+    const tickCurrentIndex = 0;
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex,
+      tickSpacing,
+      sqrtPrice: 1n << 64n,
+      feeRate: 3000,
+      protocolFeeRate: 3000,
+      liquidity: 265000n,
+    });
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(whirlpoolArgs);
+
+    const expectedStarts = expectedTickArrayStarts({ tickCurrentIndex, tickSpacing, aToB: false });
+    const expectedAddresses = await getExpectedTickArrayAddresses([...expectedStarts]);
+    const runtimeTickArrayArgs = [
+      buildTickArrayArgs(expectedStarts[0], { initialized: true, positiveLiquidity: false }),
+      buildTickArrayArgs(expectedStarts[1], { initialized: true, positiveLiquidity: false }),
+      buildTickArrayArgs(expectedStarts[2], { initialized: true, positiveLiquidity: false }),
+    ];
+    const coreReferenceTickArrayArgs = [
+      buildTickArrayArgs(-352, { initialized: true, positiveLiquidity: true }),
+      buildTickArrayArgs(-176, { initialized: true, positiveLiquidity: true }),
+      ...runtimeTickArrayArgs,
+    ];
+    setTickArraysOnConnection(connection, expectedAddresses, runtimeTickArrayArgs);
+
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_out',
+      input: {
+        token_in_mint: TOKEN_MINT_B,
+        token_out_mint: TOKEN_MINT_A,
+        amount_out: '1000',
+        slippage_bps: '1000',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const coreQuote = swapQuoteByOutputToken(
+      1000n,
+      false,
+      1000,
+      toCoreWhirlpool(whirlpoolArgs),
+      undefined,
+      coreReferenceTickArrayArgs.map(toCoreTickArray),
+      0n,
+      undefined,
+      undefined,
+    );
+    const output = view.output as Record<string, unknown>;
+
+    expect(view.derived.tick_array_starts).toEqual([...expectedStarts]);
+    expect(view.derived.tick_arrays).toEqual(expectedAddresses);
+    expect(getLoadedTickArrays(view).map((entry) => entry.start_tick_index)).toEqual([...expectedStarts]);
+    expect(output.amount_out).toBe('1000');
+    expect(output.estimated_in).toBe(coreQuote.tokenEstIn.toString());
+    expect(output.maximum_in).toBe(coreQuote.tokenMaxIn.toString());
+  });
+
+  it('matches Orca B->A exact-output quote semantics for smaller output sizes via the widened core reference window', async () => {
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex: 0,
+      tickSpacing: 2,
+      sqrtPrice: 1n << 64n,
+      feeRate: 3000,
+      protocolFeeRate: 3000,
+      liquidity: 265000n,
+    });
+    const connection = new StaticAccountConnection();
+    connection.setWhirlpool(whirlpoolArgs);
+
+    const expectedStarts = expectedTickArrayStarts({ tickCurrentIndex: 0, tickSpacing: 2, aToB: false });
+    const expectedAddresses = await getExpectedTickArrayAddresses([...expectedStarts]);
+    const runtimeTickArrayArgs = [
+      buildTickArrayArgs(expectedStarts[0], { initialized: true, positiveLiquidity: false }),
+      buildTickArrayArgs(expectedStarts[1], { initialized: true, positiveLiquidity: false }),
+      buildTickArrayArgs(expectedStarts[2], { initialized: true, positiveLiquidity: false }),
+    ];
+    const coreReferenceTickArrayArgs = [
+      buildTickArrayArgs(-352, { initialized: true, positiveLiquidity: true }),
+      buildTickArrayArgs(-176, { initialized: true, positiveLiquidity: true }),
+      ...runtimeTickArrayArgs,
+    ];
+    setTickArraysOnConnection(connection, expectedAddresses, runtimeTickArrayArgs);
+
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_exact_out',
+      input: {
+        token_in_mint: TOKEN_MINT_B,
+        token_out_mint: TOKEN_MINT_A,
+        amount_out: '500',
+        slippage_bps: '1000',
+        whirlpool: ORCA_WHIRLPOOL,
+        unwrap_sol_output: false,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+    const coreQuote = swapQuoteByOutputToken(
+      500n,
+      false,
+      1000,
+      toCoreWhirlpool(whirlpoolArgs),
+      undefined,
+      coreReferenceTickArrayArgs.map(toCoreTickArray),
+      0n,
+      undefined,
+      undefined,
+    );
+    const output = view.output as Record<string, unknown>;
+
+    expect(output.amount_out).toBe('500');
+    expect(output.estimated_in).toBe(coreQuote.tokenEstIn.toString());
+    expect(output.maximum_in).toBe(coreQuote.tokenMaxIn.toString());
+  });
+
+  it('documents that the direct Orca core helper rejects the runtime-sized three-array window for B->A exact-output', () => {
+    const whirlpoolArgs: WhirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex: 0,
+      tickSpacing: 2,
+      sqrtPrice: 1n << 64n,
+      feeRate: 3000,
+      protocolFeeRate: 3000,
+      liquidity: 265000n,
+    });
+    const runtimeTickArrayArgs = [
+      buildTickArrayArgs(0, { initialized: true, positiveLiquidity: false }),
+      buildTickArrayArgs(176, { initialized: true, positiveLiquidity: false }),
+      buildTickArrayArgs(352, { initialized: true, positiveLiquidity: false }),
+    ];
+
+    expect(() =>
+      swapQuoteByOutputToken(
+        1000n,
+        false,
+        1000,
+        toCoreWhirlpool(whirlpoolArgs),
+        undefined,
+        runtimeTickArrayArgs.map(toCoreTickArray),
+        0n,
+        undefined,
+        undefined,
+      ),
+    ).toThrow(/Invalid tick array sequence/);
+  });
 });

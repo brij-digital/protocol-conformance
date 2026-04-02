@@ -40,6 +40,8 @@ The first test wave targets:
    - exact-input quote parity on representative `A->B` and `B->A` fixtures
 7. `quote_exact_out`
    - exact-output quote parity on realistic upstream-style `A->B` fixtures
+   - exact-output quote parity on realistic smoke-style `B->A` fixtures against a widened Orca core reference window
+   - explicit coverage of the Orca core helper boundary when it is given only the runtime-sized three-array window
 
 ## Upstream reference
 
@@ -92,6 +94,8 @@ The harness is now green on the first comparison wave:
 - `quote_exact_out`
   - runtime matches Orca exact-output quoting on upstream smoke-style `A->B` fixtures
   - the harness currently validates multiple output sizes on the same realistic pool shape
+  - runtime now also matches Orca `B->A` exact-output quoting on the same smoke-style pool shape when the reference side is given the widened five-array window Orca core expects
+  - the harness also documents the helper-level boundary explicitly: the direct Orca core helper rejects the runtime-sized three-array window for `B->A` exact-output with `Invalid tick array sequence`
 
 That matters because the runtime is still doing this through:
 - ordered load steps
@@ -108,6 +112,6 @@ What this repo shows now:
 - the next comparison wave should broaden coverage, not just re-argue the core shape of the runtime spec
 
 The natural next candidates are:
-- broaden exact-output coverage, especially `B->A`, with more realistic fixture shapes
+- decide whether the runtime should eventually widen its own `B->A` exact-output tick-array window, or keep the current model and treat the wider Orca core helper requirement as a reference-only nuance
 - position update / fee-refresh style writes
 - additional multi-step write paths
