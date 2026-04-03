@@ -11,7 +11,7 @@ import {
 } from '../fixtures/orca.js';
 
 process.env.APPPACK_RUNTIME_REGISTRY_PATH = path.resolve(
-  '/Users/antoine/Documents/github/Espresso Cash/ec-ai-wallet/public/idl/registry.json',
+  '/Users/antoine/.openclaw/workspace-coding/brij-digital/ec-ai-wallet/public/idl/registry.json',
 );
 
 export class StaticAccountConnection {
