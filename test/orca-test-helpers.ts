@@ -52,6 +52,10 @@ export async function getExpectedTickArrayAddresses(starts: number[]) {
   );
 }
 
+export async function getExpectedTickArrayAddressesForWhirlpool(whirlpool: string, starts: number[]) {
+  return Promise.all(starts.map(async (startIndex) => (await getTickArrayAddress(address(whirlpool), startIndex))[0]));
+}
+
 export function setTickArraysOnConnection(
   connection: StaticAccountConnection,
   addresses: string[],
@@ -166,6 +170,35 @@ export function toCamelSwapAccounts(accounts: Record<string, string>) {
   };
 }
 
+export function toCamelTwoHopSwapAccounts(accounts: Record<string, string>) {
+  return {
+    whirlpoolOne: address(accounts.whirlpool_one),
+    whirlpoolTwo: address(accounts.whirlpool_two),
+    tokenMintInput: address(accounts.token_mint_input),
+    tokenMintIntermediate: address(accounts.token_mint_intermediate),
+    tokenMintOutput: address(accounts.token_mint_output),
+    tokenProgramInput: address(accounts.token_program_input),
+    tokenProgramIntermediate: address(accounts.token_program_intermediate),
+    tokenProgramOutput: address(accounts.token_program_output),
+    tokenOwnerAccountInput: address(accounts.token_owner_account_input),
+    tokenVaultOneInput: address(accounts.token_vault_one_input),
+    tokenVaultOneIntermediate: address(accounts.token_vault_one_intermediate),
+    tokenVaultTwoIntermediate: address(accounts.token_vault_two_intermediate),
+    tokenVaultTwoOutput: address(accounts.token_vault_two_output),
+    tokenOwnerAccountOutput: address(accounts.token_owner_account_output),
+    tokenAuthority: createNoopSigner(address(accounts.token_authority)),
+    tickArrayOne0: address(accounts.tick_array_one0),
+    tickArrayOne1: address(accounts.tick_array_one1),
+    tickArrayOne2: address(accounts.tick_array_one2),
+    tickArrayTwo0: address(accounts.tick_array_two0),
+    tickArrayTwo1: address(accounts.tick_array_two1),
+    tickArrayTwo2: address(accounts.tick_array_two2),
+    oracleOne: address(accounts.oracle_one),
+    oracleTwo: address(accounts.oracle_two),
+    memoProgram: address(accounts.memo_program),
+  };
+}
+
 export async function buildSwapExactInWriteInput(options: {
   amount: string;
   otherAmountThreshold: string;
@@ -193,6 +226,59 @@ export async function buildSwapExactInWriteInput(options: {
     tick_array1: options.tickArrays[1],
     tick_array2: options.tickArrays[2],
     oracle: expectedOracle,
+  };
+}
+
+export async function buildTwoHopSwapV2WriteInput(options: {
+  whirlpoolOne: string;
+  whirlpoolTwo: string;
+  amount: string;
+  otherAmountThreshold: string;
+  aToBOne: boolean;
+  aToBTwo: boolean;
+  sqrtPriceLimitOne: string;
+  sqrtPriceLimitTwo: string;
+  tokenMintInput: string;
+  tokenMintIntermediate: string;
+  tokenMintOutput: string;
+  tokenProgramInput: string;
+  tokenProgramIntermediate: string;
+  tokenProgramOutput: string;
+  tokenVaultOneInput: string;
+  tokenVaultOneIntermediate: string;
+  tokenVaultTwoIntermediate: string;
+  tokenVaultTwoOutput: string;
+  tickArraysOne: string[];
+  tickArraysTwo: string[];
+}) {
+  return {
+    whirlpool_one: options.whirlpoolOne,
+    whirlpool_two: options.whirlpoolTwo,
+    amount: options.amount,
+    other_amount_threshold: options.otherAmountThreshold,
+    amount_specified_is_input: true,
+    a_to_b_one: options.aToBOne,
+    a_to_bone: options.aToBOne,
+    a_to_b_two: options.aToBTwo,
+    a_to_btwo: options.aToBTwo,
+    sqrt_price_limit_one: options.sqrtPriceLimitOne,
+    sqrt_price_limit_two: options.sqrtPriceLimitTwo,
+    token_mint_input: options.tokenMintInput,
+    token_mint_intermediate: options.tokenMintIntermediate,
+    token_mint_output: options.tokenMintOutput,
+    token_program_input: options.tokenProgramInput,
+    token_program_intermediate: options.tokenProgramIntermediate,
+    token_program_output: options.tokenProgramOutput,
+    token_vault_one_input: options.tokenVaultOneInput,
+    token_vault_one_intermediate: options.tokenVaultOneIntermediate,
+    token_vault_two_intermediate: options.tokenVaultTwoIntermediate,
+    token_vault_two_output: options.tokenVaultTwoOutput,
+    tick_array_one0: options.tickArraysOne[0],
+    tick_array_one1: options.tickArraysOne[1],
+    tick_array_one2: options.tickArraysOne[2],
+    tick_array_two0: options.tickArraysTwo[0],
+    tick_array_two1: options.tickArraysTwo[1],
+    tick_array_two2: options.tickArraysTwo[2],
   };
 }
 

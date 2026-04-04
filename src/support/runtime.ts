@@ -26,7 +26,11 @@ export class StaticAccountConnection {
   }
 
   setWhirlpool(args: WhirlpoolArgs): void {
-    this.setRawAccount(ORCA_WHIRLPOOL, ORCA_PROGRAM_ID, encodeWhirlpoolAccount(args));
+    this.setWhirlpoolAt(ORCA_WHIRLPOOL, args);
+  }
+
+  setWhirlpoolAt(address: string, args: WhirlpoolArgs): void {
+    this.setRawAccount(address, ORCA_PROGRAM_ID, encodeWhirlpoolAccount(args));
   }
 
   setTickArray(address: string, args: TickArrayArgs): void {

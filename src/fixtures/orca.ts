@@ -12,9 +12,11 @@ import { address } from '@solana/kit';
 
 export const ORCA_PROGRAM_ID = 'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc';
 export const ORCA_WHIRLPOOL = '2kJmUjxWBwL2NGPBV2PiA5hWtmLCqcKY6reQgkrPtaeS';
+export const ORCA_WHIRLPOOL_TWO = '3axbTs2z5GBy6usVbNVoqEgZMng3vZvMnAoX29BFfwhr';
 export const ORCA_CONFIG = '2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ';
 export const TOKEN_MINT_A = 'So11111111111111111111111111111111111111112';
 export const TOKEN_MINT_B = '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo';
+export const TOKEN_MINT_C = '11111111111111111111111111111112';
 export const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 export const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
 export const POSITION_MINT = 'HqoV7Qv27REUtmd9UKSJGGmCRNx3531t33bDG1BUfo9K';
@@ -39,6 +41,10 @@ export function buildWhirlpoolArgs(options?: {
   feeRate?: number;
   protocolFeeRate?: number;
   liquidity?: bigint;
+  tokenMintA?: string;
+  tokenMintB?: string;
+  tokenVaultA?: string;
+  tokenVaultB?: string;
 }): WhirlpoolArgs {
   const tickSpacing = options?.tickSpacing ?? 64;
   return {
@@ -53,11 +59,11 @@ export function buildWhirlpoolArgs(options?: {
     tickCurrentIndex: options?.tickCurrentIndex ?? 0,
     protocolFeeOwedA: 0n,
     protocolFeeOwedB: 0n,
-    tokenMintA: address(TOKEN_MINT_A),
-    tokenVaultA: address(PublicKey.default.toBase58()),
+    tokenMintA: address(options?.tokenMintA ?? TOKEN_MINT_A),
+    tokenVaultA: address(options?.tokenVaultA ?? PublicKey.default.toBase58()),
     feeGrowthGlobalA: 0n,
-    tokenMintB: address(TOKEN_MINT_B),
-    tokenVaultB: address(PublicKey.default.toBase58()),
+    tokenMintB: address(options?.tokenMintB ?? TOKEN_MINT_B),
+    tokenVaultB: address(options?.tokenVaultB ?? PublicKey.default.toBase58()),
     feeGrowthGlobalB: 0n,
     rewardLastUpdatedTimestamp: 0n,
     rewardInfos: REWARD_MINTS.map((mint, index) => ({
@@ -125,6 +131,7 @@ export function buildTickArrayArgs(
   options?: {
     initialized?: boolean;
     positiveLiquidity?: boolean;
+    whirlpool?: string;
   },
 ): TickArrayArgs {
   const initialized = options?.initialized ?? false;
@@ -132,7 +139,7 @@ export function buildTickArrayArgs(
   const liquidityNet = positiveLiquidity ? 1000n : -1000n;
   return {
     startTickIndex,
-    whirlpool: address(ORCA_WHIRLPOOL),
+    whirlpool: address(options?.whirlpool ?? ORCA_WHIRLPOOL),
     ticks: Array.from({ length: 88 }, () =>
       buildBlankTick(
         initialized
@@ -163,6 +170,7 @@ export type TickOverride = {
 export function buildCustomTickArrayArgs(
   startTickIndex: number,
   overrides: TickOverride[],
+  whirlpool = ORCA_WHIRLPOOL,
 ): TickArrayArgs {
   const ticks = Array.from({ length: 88 }, () => buildBlankTick());
   for (const override of overrides) {
@@ -180,7 +188,7 @@ export function buildCustomTickArrayArgs(
   }
   return {
     startTickIndex,
-    whirlpool: address(ORCA_WHIRLPOOL),
+    whirlpool: address(whirlpool),
     ticks,
   };
 }
