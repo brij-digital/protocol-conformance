@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PublicKey } from '@solana/web3.js';
 import type { PositionArgs, TickArrayArgs, WhirlpoolArgs } from '@orca-so/whirlpools-client';
 import {
@@ -10,8 +11,11 @@ import {
   TEST_WALLET,
 } from '../fixtures/orca.js';
 
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+
 process.env.APPPACK_RUNTIME_REGISTRY_PATH = path.resolve(
-  '/Users/antoine/.openclaw/workspace-coding/brij-digital/ec-ai-wallet/public/idl/registry.json',
+  moduleDir,
+  '../../../ec-ai-wallet/public/idl/registry.json',
 );
 
 export class StaticAccountConnection {

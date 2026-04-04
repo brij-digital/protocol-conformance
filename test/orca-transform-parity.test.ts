@@ -9,7 +9,7 @@ import {
   tryReverseApplySwapFee,
 } from '@orca-so/whirlpools-core';
 import { describe, expect, it } from 'vitest';
-import { runRegisteredComputeStep } from '../../apppack-runtime/dist/index.js';
+import { runRegisteredComputeStep } from '@brij-digital/apppack-runtime';
 import { getTestWallet, StaticAccountConnection } from '../src/support/runtime.js';
 
 type JsonRecord = Record<string, unknown>;
