@@ -45,11 +45,10 @@ test/
 
 ## What We Test
 
-1. **Instruction encoding parity** — `prepareRuntimeInstruction` output matches official SDK instruction byte-for-byte
-2. **Account derivation parity** — all derived accounts (PDAs, ATAs, oracles) match SDK helpers
-3. **Quote math parity** — `runRuntimeView` output matches SDK quote functions exactly
-4. **Transform parity** — individual runtime transforms match SDK math primitives (tick→price, delta amounts, sqrt price, swap steps)
-5. **Integration** — quote output feeds into write input correctly (end-to-end pipeline)
+1. **Instruction encoding** — `prepareRuntimeInstruction` output matches official SDK instruction byte-for-byte
+2. **Account derivation** — all derived accounts (PDAs, ATAs, oracles) match SDK helpers
+3. **Transform parity** — runtime transforms (quotes, math primitives, swap steps) match SDK functions exactly
+4. **Integration** — quote output feeds into write input correctly (end-to-end pipeline)
 
 ## Run
 
