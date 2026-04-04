@@ -16,8 +16,12 @@ import {
 } from '@orca-so/whirlpools-client';
 import { address, createNoopSigner } from '@solana/kit';
 import { swapQuoteByInputToken, swapQuoteByOutputToken } from '@orca-so/whirlpools-core';
-import { explainRuntimeOperation, prepareRuntimeInstruction, runRuntimeView } from '@brij-digital/apppack-runtime/runtimeOperationRuntime';
-import { previewIdlInstruction } from '@brij-digital/apppack-runtime';
+import { previewIdlInstruction } from '../../apppack-runtime/dist/index.js';
+import {
+  explainRuntimeOperation,
+  prepareRuntimeInstruction,
+  runRuntimeView,
+} from '../../apppack-runtime/dist/runtimeOperationRuntime.js';
 import {
   buildPositionArgs,
   buildCustomTickArrayArgs,
