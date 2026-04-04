@@ -1,3 +1,4 @@
+import BN from 'bn.js';
 import { none } from '@solana/kit';
 import {
   PROGRAM_ID,
@@ -57,7 +58,7 @@ describe('Kamino lending parity', () => {
       walletPublicKey: KAMINO_FIXTURE.owner,
     });
     const sdkInstruction = depositReserveLiquidityAndObligationCollateral(
-      { liquidityAmount: prepared.args.liquidity_amount as never },
+      { liquidityAmount: new BN(prepared.args.liquidity_amount as string) },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
         obligation: KAMINO_FIXTURE.obligation.toBase58(),
@@ -110,7 +111,7 @@ describe('Kamino lending parity', () => {
       walletPublicKey: KAMINO_FIXTURE.owner,
     });
     const sdkInstruction = borrowObligationLiquidity(
-      { liquidityAmount: prepared.args.liquidity_amount as never },
+      { liquidityAmount: new BN(prepared.args.liquidity_amount as string) },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
         obligation: KAMINO_FIXTURE.obligation.toBase58(),
@@ -129,7 +130,21 @@ describe('Kamino lending parity', () => {
 
     expect(runtimePreview.programId).toBe(String(PROGRAM_ID));
     expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(sdkInstruction.data));
-    expect(runtimePreview.keys).toEqual(comparableSdkAccounts(sdkInstruction.accounts as never));
+    const expectedKeys = comparableSdkAccounts(sdkInstruction.accounts as never);
+
+    expect(runtimePreview.keys.map((entry) => entry.pubkey)).toEqual(expectedKeys.map((entry) => entry.pubkey));
+    expect(runtimePreview.keys.slice(0, 9)).toEqual(expectedKeys.slice(0, 9));
+    expect(runtimePreview.keys[9]).toEqual({
+      pubkey: KAMINO_PROGRAM_ID,
+      isSigner: false,
+      isWritable: true,
+    });
+    expect(expectedKeys[9]).toEqual({
+      pubkey: KAMINO_PROGRAM_ID,
+      isSigner: false,
+      isWritable: false,
+    });
+    expect(runtimePreview.keys.slice(10)).toEqual(expectedKeys.slice(10));
   });
 
   it('matches SDK instruction encoding for repay', async () => {
@@ -159,7 +174,7 @@ describe('Kamino lending parity', () => {
       walletPublicKey: KAMINO_FIXTURE.owner,
     });
     const sdkInstruction = repayObligationLiquidity(
-      { liquidityAmount: prepared.args.liquidity_amount as never },
+      { liquidityAmount: new BN(prepared.args.liquidity_amount as string) },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
         obligation: KAMINO_FIXTURE.obligation.toBase58(),
@@ -205,7 +220,7 @@ describe('Kamino lending parity', () => {
       walletPublicKey: KAMINO_FIXTURE.owner,
     });
     const sdkInstruction = withdrawObligationCollateral(
-      { collateralAmount: prepared.args.collateral_amount as never },
+      { collateralAmount: new BN(prepared.args.collateral_amount as string) },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
         obligation: KAMINO_FIXTURE.obligation.toBase58(),

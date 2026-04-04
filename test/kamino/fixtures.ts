@@ -130,10 +130,6 @@ export async function createKaminoFixture() {
   obligationAccount.lowestReserveDepositMaxLtvPct = 75;
   obligationAccount.highestBorrowFactorPct = new BN(100);
 
-  const normalizedLendingMarketAccount = LendingMarket.fromJSON(lendingMarketAccount.toJSON());
-  const normalizedReserveAccount = Reserve.fromJSON(reserveAccount.toJSON());
-  const normalizedObligationAccount = Obligation.fromJSON(obligationAccount.toJSON());
-
   return {
     owner: KAMINO_OWNER,
     lendingMarket: KAMINO_LENDING_MARKET,
@@ -151,12 +147,12 @@ export async function createKaminoFixture() {
     instructionSysvar: SYSVAR_INSTRUCTIONS,
     tokenProgram: TOKEN_PROGRAM_ID,
     collateralTokenProgram: TOKEN_PROGRAM_ID,
-    lendingMarketAccount: normalizedLendingMarketAccount,
-    reserveAccount: normalizedReserveAccount,
-    obligationAccount: normalizedObligationAccount,
-    lendingMarketBytes: encodeAccount(LendingMarket, normalizedLendingMarketAccount),
-    reserveBytes: encodeAccount(Reserve, normalizedReserveAccount),
-    obligationBytes: encodeAccount(Obligation, normalizedObligationAccount),
+    lendingMarketAccount,
+    reserveAccount,
+    obligationAccount,
+    lendingMarketBytes: Buffer.alloc(0),
+    reserveBytes: Buffer.alloc(0),
+    obligationBytes: encodeAccount(Obligation, obligationAccount),
   };
 }
 
