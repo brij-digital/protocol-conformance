@@ -6,7 +6,9 @@ import {
   removeLiquidityInstruction,
 } from '@raydium-io/raydium-sdk-v2';
 import { prepareRuntimeInstruction, previewIdlInstruction } from '@brij-digital/apppack-runtime';
+import { PublicKey } from '@solana/web3.js';
 import { describe, expect, it } from 'vitest';
+import '../../src/support/runtime.js';
 import {
   OPENBOOK_PROGRAM_ID,
   RAYDIUM_AMM_FIXTURE,
@@ -17,10 +19,15 @@ import {
 } from './fixtures.js';
 
 function comparableKeys(
-  keys: Array<{ pubkey: { toBase58(): string }; isSigner: boolean; isWritable: boolean }>,
+  keys: Array<{ pubkey: unknown; isSigner: boolean; isWritable: boolean }>,
 ): Array<{ pubkey: string; isSigner: boolean; isWritable: boolean }> {
   return keys.map((entry) => ({
-    pubkey: entry.pubkey.toBase58(),
+    pubkey:
+      typeof entry.pubkey === 'string'
+        ? entry.pubkey
+        : entry.pubkey instanceof PublicKey
+          ? entry.pubkey.toBase58()
+          : new PublicKey(entry.pubkey as ConstructorParameters<typeof PublicKey>[0]).toBase58(),
     isSigner: entry.isSigner,
     isWritable: entry.isWritable,
   }));

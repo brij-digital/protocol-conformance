@@ -8,6 +8,12 @@
   "writes": {
     "swap_base_in": {
       "instruction": "swap_base_in",
+      "steps": [
+        {
+          "name": "wallet",
+          "kind": "wallet_pubkey"
+        }
+      ],
       "args": {
         "amount_in": "$input.amount_in",
         "min_amount_out": "$input.min_amount_out"
@@ -35,6 +41,12 @@
     },
     "swap_base_out": {
       "instruction": "swap_base_out",
+      "steps": [
+        {
+          "name": "wallet",
+          "kind": "wallet_pubkey"
+        }
+      ],
       "args": {
         "max_amount_in": "$input.max_amount_in",
         "amount_out": "$input.amount_out"
@@ -62,6 +74,12 @@
     },
     "add_liquidity_fixed_base": {
       "instruction": "add_liquidity",
+      "steps": [
+        {
+          "name": "wallet",
+          "kind": "wallet_pubkey"
+        }
+      ],
       "args": {
         "base_amount_in": "$input.base_amount_in",
         "quote_amount_in": "$input.quote_amount_in",
@@ -87,6 +105,12 @@
     },
     "add_liquidity_fixed_quote": {
       "instruction": "add_liquidity",
+      "steps": [
+        {
+          "name": "wallet",
+          "kind": "wallet_pubkey"
+        }
+      ],
       "args": {
         "base_amount_in": "$input.base_amount_in",
         "quote_amount_in": "$input.quote_amount_in",
@@ -112,6 +136,12 @@
     },
     "remove_liquidity": {
       "instruction": "remove_liquidity",
+      "steps": [
+        {
+          "name": "wallet",
+          "kind": "wallet_pubkey"
+        }
+      ],
       "args": {
         "lp_amount": "$input.lp_amount",
         "base_amount_min": "$input.base_amount_min",
