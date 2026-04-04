@@ -22,15 +22,38 @@ function comparableKeys(
   keys: Array<{ pubkey: unknown; isSigner: boolean; isWritable: boolean }>,
 ): Array<{ pubkey: string; isSigner: boolean; isWritable: boolean }> {
   return keys.map((entry) => ({
-    pubkey:
-      typeof entry.pubkey === 'string'
-        ? entry.pubkey
-        : entry.pubkey instanceof PublicKey
-          ? entry.pubkey.toBase58()
-          : new PublicKey(entry.pubkey as ConstructorParameters<typeof PublicKey>[0]).toBase58(),
+    pubkey: comparablePubkey(entry.pubkey),
     isSigner: entry.isSigner,
     isWritable: entry.isWritable,
   }));
+}
+
+function comparablePubkey(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value instanceof PublicKey) {
+    return value.toBase58();
+  }
+  if (value && typeof value === 'object' && '_bn' in value) {
+    const candidate = value as {
+      _bn?: {
+        negative?: number;
+        words?: number[];
+        length?: number;
+      };
+    };
+    if (candidate._bn?.words && typeof candidate._bn.length === 'number') {
+      const bn = Object.assign(new BN(0), {
+        negative: candidate._bn.negative ?? 0,
+        words: candidate._bn.words,
+        length: candidate._bn.length,
+        red: null,
+      });
+      return new PublicKey(bn.toArrayLike(Buffer, 'be', 32)).toBase58();
+    }
+  }
+  return new PublicKey(value as ConstructorParameters<typeof PublicKey>[0]).toBase58();
 }
 
 describe('Raydium AMM parity', () => {
