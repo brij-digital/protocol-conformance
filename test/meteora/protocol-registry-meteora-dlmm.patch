@@ -1,0 +1,160 @@
+*** Begin Patch
+*** Add File: runtime/meteora-dlmm.json
++{
++  "$schema": "/schemas/solana_agent_runtime.schema.v1.json",
++  "schema": "solana-agent-runtime.v1",
++  "protocol_id": "meteora-dlmm-mainnet",
++  "program_id": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++  "codama_path": "/codama/meteora-dlmm.json",
++  "label": "Meteora DLMM",
++  "writes": {},
++  "transforms": {
++    "derive_position_related_pdas": [
++      {
++        "name": "position",
++        "kind": "pda(seed_spec)",
++        "program_id": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++        "seeds": [
++          {
++            "kind": "utf8",
++            "value": "position"
++          },
++          {
++            "kind": "pubkey",
++            "value": "$lb_pair"
++          },
++          {
++            "kind": "pubkey",
++            "value": "$base"
++          },
++          {
++            "kind": "i32_le",
++            "value": "$lower_bin_id"
++          },
++          {
++            "kind": "i32_le",
++            "value": "$width"
++          }
++        ]
++      },
++      {
++        "name": "reserve_x",
++        "kind": "pda(seed_spec)",
++        "program_id": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++        "seeds": [
++          {
++            "kind": "pubkey",
++            "value": "$lb_pair"
++          },
++          {
++            "kind": "pubkey",
++            "value": "$token_x"
++          }
++        ]
++      },
++      {
++        "name": "reserve_y",
++        "kind": "pda(seed_spec)",
++        "program_id": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++        "seeds": [
++          {
++            "kind": "pubkey",
++            "value": "$lb_pair"
++          },
++          {
++            "kind": "pubkey",
++            "value": "$token_y"
++          }
++        ]
++      },
++      {
++        "name": "oracle",
++        "kind": "pda(seed_spec)",
++        "program_id": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++        "seeds": [
++          {
++            "kind": "utf8",
++            "value": "oracle"
++          },
++          {
++            "kind": "pubkey",
++            "value": "$lb_pair"
++          }
++        ]
++      },
++      {
++        "name": "bitmap",
++        "kind": "pda(seed_spec)",
++        "program_id": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++        "seeds": [
++          {
++            "kind": "utf8",
++            "value": "bitmap"
++          },
++          {
++            "kind": "pubkey",
++            "value": "$lb_pair"
++          }
++        ]
++      },
++      {
++        "name": "event_authority",
++        "kind": "pda(seed_spec)",
++        "program_id": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++        "seeds": [
++          {
++            "kind": "utf8",
++            "value": "__event_authority"
++          }
++        ]
++      }
++    ]
++  }
++}
+*** Add File: codama/meteora-dlmm.json
++{
++  "kind": "rootNode",
++  "standard": "codama",
++  "version": "1.5.1",
++  "program": {
++    "kind": "programNode",
++    "name": "lb_clmm",
++    "publicKey": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++    "version": "0.11.0",
++    "origin": "anchor",
++    "docs": [],
++    "accounts": [],
++    "instructions": [],
++    "definedTypes": [],
++    "errors": []
++  }
++}
+*** Update File: registry.json
+@@
+     {
+       "id": "pump-core-mainnet",
+       "name": "Pump Core",
+       "network": "mainnet-beta",
+       "programId": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+@@
+       "supportedCommands": [
+         "/pump-curve"
+       ],
+       "status": "active"
++    },
++    {
++      "id": "meteora-dlmm-mainnet",
++      "name": "Meteora DLMM",
++      "network": "mainnet-beta",
++      "programId": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++      "codamaIdlPath": "/codama/meteora-dlmm.json",
++      "agentRuntimePath": "/runtime/meteora-dlmm.json",
++      "transport": "local-meteora-dlmm",
++      "supportedCommands": [
++        "/meteora-dlmm"
++      ],
++      "status": "active"
+     }
+   ]
+ }
+*** End Patch
