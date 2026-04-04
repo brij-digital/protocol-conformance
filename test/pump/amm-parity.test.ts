@@ -13,7 +13,7 @@ import {
 } from './fixtures-amm.js';
 import { executeTransform, instructionPubkeys, lastInstruction, loadRuntimePack } from './helpers.js';
 
-const runtimePack = loadRuntimePack('../../../protocol-registry/protocols/pump-amm/runtime.json');
+const runtimePack = loadRuntimePack('../../../protocol-registry/runtime/pump-amm.json');
 
 describe('Pump AMM parity', () => {
   it('matches SDK instruction encoding and remaining accounts for buy', async () => {

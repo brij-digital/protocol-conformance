@@ -14,7 +14,7 @@ import {
 } from './fixtures-core.js';
 import { executeTransform, instructionPubkeys, loadRuntimePack } from './helpers.js';
 
-const runtimePack = loadRuntimePack('../../../protocol-registry/protocols/pump-core/runtime.json');
+const runtimePack = loadRuntimePack('../../../protocol-registry/runtime/pump-core.json');
 
 describe('Pump Core parity', () => {
   it('matches SDK instruction encoding and remaining accounts for buy_exact_sol_in', async () => {

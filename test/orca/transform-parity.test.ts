@@ -45,7 +45,7 @@ const MAX_TICK_INDEX = 443636;
 const FEE_DENOMINATOR = 1_000_000n;
 
 const runtimePack = JSON.parse(
-  fs.readFileSync(new URL('../../../protocol-registry/protocols/orca-whirlpool/runtime.json', import.meta.url), 'utf8'),
+  fs.readFileSync(new URL('../../../protocol-registry/runtime/orca-whirlpool.json', import.meta.url), 'utf8'),
 ) as RuntimePack;
 
 const runtimeExecutorBase = {
