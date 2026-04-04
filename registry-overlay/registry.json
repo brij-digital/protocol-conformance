@@ -71,6 +71,19 @@
       "status": "active"
     },
     {
+      "id": "marinade-mainnet",
+      "name": "Marinade Liquid Staking",
+      "network": "mainnet-beta",
+      "programId": "MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD",
+      "codamaIdlPath": "/codama/marinade.json",
+      "agentRuntimePath": "/runtime/marinade.json",
+      "transport": "local-marinade",
+      "supportedCommands": [
+        "/marinade"
+      ],
+      "status": "active"
+    },
+    {
       "id": "raydium-clmm-mainnet",
       "name": "Raydium CLMM",
       "network": "mainnet-beta",
