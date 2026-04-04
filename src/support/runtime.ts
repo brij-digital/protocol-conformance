@@ -15,7 +15,7 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 process.env.APPPACK_RUNTIME_REGISTRY_PATH = path.resolve(
   moduleDir,
-  '../../../ec-ai-wallet/public/idl/registry.json',
+  '../../../protocol-registry/registry.json',
 );
 
 export class StaticAccountConnection {

@@ -41,7 +41,7 @@ export const WHITELIST_PDA = '8SFqwqnq4whPhs8icwHA2hQg3hUoN1qrCLK1SBx3WKwe';
 export const RESERVED_FEE_RECIPIENT = 'AKkzLhjhyFtM9j7WAhbaqYpFe49cXeJBg2kzLRC2PnNa';
 
 const accountsCoder = new DirectAccountsCoder(
-  JSON.parse(fs.readFileSync(new URL('../../../ec-ai-wallet/public/idl/pump_amm.codama.json', import.meta.url), 'utf8')),
+  JSON.parse(fs.readFileSync(new URL('../../../protocol-registry/protocols/pump-amm/codama.json', import.meta.url), 'utf8')),
 );
 
 const wallet = new PublicKey(TEST_WALLET);
