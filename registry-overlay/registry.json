@@ -1,0 +1,87 @@
+{
+  "version": "0.2.0",
+  "globalCommands": [
+    "/help",
+    "/idl-list",
+    "/idl-template",
+    "/meta-explain",
+    "/idl-view",
+    "/idl-send",
+    "/write-raw",
+    "/read-raw"
+  ],
+  "protocols": [
+    {
+      "id": "kamino-lending-mainnet",
+      "name": "Kamino K-Lend",
+      "network": "mainnet-beta",
+      "programId": "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD",
+      "codamaIdlPath": "/codama/kamino-lending.json",
+      "agentRuntimePath": "/runtime/kamino-lending.json",
+      "transport": "local-kamino-lending",
+      "supportedCommands": [
+        "/kamino-lending"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "orca-whirlpool-mainnet",
+      "name": "Orca Whirlpools",
+      "network": "mainnet-beta",
+      "programId": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "codamaIdlPath": "/codama/orca-whirlpool.json",
+      "agentRuntimePath": "/runtime/orca-whirlpool.json",
+      "ingestSpecPath": "/indexing/ingest/orca-whirlpool.json",
+      "indexedReadsPath": "/indexing/indexed-reads/orca-whirlpool.json",
+      "transport": "local-orca-whirlpool",
+      "supportedCommands": [
+        "/orca-list-pools",
+        "/orca"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "pump-amm-mainnet",
+      "name": "Pump AMM",
+      "network": "mainnet-beta",
+      "programId": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+      "codamaIdlPath": "/codama/pump-amm.json",
+      "agentRuntimePath": "/runtime/pump-amm.json",
+      "ingestSpecPath": "/indexing/ingest/pump-amm.json",
+      "indexedReadsPath": "/indexing/indexed-reads/pump-amm.json",
+      "transport": "local-pump-amm",
+      "supportedCommands": [
+        "/pump-amm"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "pump-core-mainnet",
+      "name": "Pump Core",
+      "network": "mainnet-beta",
+      "programId": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+      "codamaIdlPath": "/codama/pump-core.json",
+      "agentRuntimePath": "/runtime/pump-core.json",
+      "ingestSpecPath": "/indexing/ingest/pump-core.json",
+      "indexedReadsPath": "/indexing/indexed-reads/pump-core.json",
+      "transport": "local-pump-core",
+      "supportedCommands": [
+        "/pump-curve"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "raydium-amm-mainnet",
+      "name": "Raydium AMM v4",
+      "network": "mainnet-beta",
+      "programId": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      "codamaIdlPath": "/codama/raydium-amm.json",
+      "agentRuntimePath": "/runtime/raydium-amm.json",
+      "transport": "local-raydium-amm",
+      "supportedCommands": [
+        "/raydium-amm"
+      ],
+      "status": "active"
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "$schema": "/schemas/solana_agent_runtime.schema.v1.json",
+  "schema": "solana-agent-runtime.v1",
+  "protocol_id": "raydium-amm-mainnet",
+  "program_id": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+  "codama_path": "/codama/raydium-amm.json",
+  "label": "Raydium AMM v4",
+  "writes": {
+    "swap_base_in": {
+      "instruction": "swap_base_in",
+      "args": {
+        "amount_in": "$input.amount_in",
+        "min_amount_out": "$input.min_amount_out"
+      },
+      "accounts": {
+        "token_program": "$input.token_program",
+        "pool": "$input.pool",
+        "authority": "$input.authority",
+        "open_orders": "$input.open_orders",
+        "target_orders": "$input.target_orders",
+        "base_vault": "$input.base_vault",
+        "quote_vault": "$input.quote_vault",
+        "market_program": "$input.market_program",
+        "market": "$input.market",
+        "market_bids": "$input.market_bids",
+        "market_asks": "$input.market_asks",
+        "market_event_queue": "$input.market_event_queue",
+        "market_base_vault": "$input.market_base_vault",
+        "market_quote_vault": "$input.market_quote_vault",
+        "market_authority": "$input.market_authority",
+        "user_token_in": "$input.user_token_in",
+        "user_token_out": "$input.user_token_out",
+        "owner": "$wallet"
+      }
+    },
+    "swap_base_out": {
+      "instruction": "swap_base_out",
+      "args": {
+        "max_amount_in": "$input.max_amount_in",
+        "amount_out": "$input.amount_out"
+      },
+      "accounts": {
+        "token_program": "$input.token_program",
+        "pool": "$input.pool",
+        "authority": "$input.authority",
+        "open_orders": "$input.open_orders",
+        "target_orders": "$input.target_orders",
+        "base_vault": "$input.base_vault",
+        "quote_vault": "$input.quote_vault",
+        "market_program": "$input.market_program",
+        "market": "$input.market",
+        "market_bids": "$input.market_bids",
+        "market_asks": "$input.market_asks",
+        "market_event_queue": "$input.market_event_queue",
+        "market_base_vault": "$input.market_base_vault",
+        "market_quote_vault": "$input.market_quote_vault",
+        "market_authority": "$input.market_authority",
+        "user_token_in": "$input.user_token_in",
+        "user_token_out": "$input.user_token_out",
+        "owner": "$wallet"
+      }
+    },
+    "add_liquidity_fixed_base": {
+      "instruction": "add_liquidity",
+      "args": {
+        "base_amount_in": "$input.base_amount_in",
+        "quote_amount_in": "$input.quote_amount_in",
+        "fixed_side": "0",
+        "other_amount_min": "$input.other_amount_min"
+      },
+      "accounts": {
+        "token_program": "$input.token_program",
+        "pool": "$input.pool",
+        "authority": "$input.authority",
+        "open_orders": "$input.open_orders",
+        "target_orders": "$input.target_orders",
+        "lp_mint": "$input.lp_mint",
+        "base_vault": "$input.base_vault",
+        "quote_vault": "$input.quote_vault",
+        "market": "$input.market",
+        "user_base_token_account": "$input.user_base_token_account",
+        "user_quote_token_account": "$input.user_quote_token_account",
+        "user_lp_token_account": "$input.user_lp_token_account",
+        "owner": "$wallet",
+        "market_event_queue": "$input.market_event_queue"
+      }
+    },
+    "add_liquidity_fixed_quote": {
+      "instruction": "add_liquidity",
+      "args": {
+        "base_amount_in": "$input.base_amount_in",
+        "quote_amount_in": "$input.quote_amount_in",
+        "fixed_side": "1",
+        "other_amount_min": "$input.other_amount_min"
+      },
+      "accounts": {
+        "token_program": "$input.token_program",
+        "pool": "$input.pool",
+        "authority": "$input.authority",
+        "open_orders": "$input.open_orders",
+        "target_orders": "$input.target_orders",
+        "lp_mint": "$input.lp_mint",
+        "base_vault": "$input.base_vault",
+        "quote_vault": "$input.quote_vault",
+        "market": "$input.market",
+        "user_base_token_account": "$input.user_base_token_account",
+        "user_quote_token_account": "$input.user_quote_token_account",
+        "user_lp_token_account": "$input.user_lp_token_account",
+        "owner": "$wallet",
+        "market_event_queue": "$input.market_event_queue"
+      }
+    },
+    "remove_liquidity": {
+      "instruction": "remove_liquidity",
+      "args": {
+        "lp_amount": "$input.lp_amount",
+        "base_amount_min": "$input.base_amount_min",
+        "quote_amount_min": "$input.quote_amount_min"
+      },
+      "accounts": {
+        "token_program": "$input.token_program",
+        "pool": "$input.pool",
+        "authority": "$input.authority",
+        "open_orders": "$input.open_orders",
+        "target_orders": "$input.target_orders",
+        "lp_mint": "$input.lp_mint",
+        "base_vault": "$input.base_vault",
+        "quote_vault": "$input.quote_vault",
+        "withdraw_queue": "$input.withdraw_queue",
+        "temp_lp_token_account": "$input.temp_lp_token_account",
+        "market_program": "$input.market_program",
+        "market": "$input.market",
+        "market_base_vault": "$input.market_base_vault",
+        "market_quote_vault": "$input.market_quote_vault",
+        "market_authority": "$input.market_authority",
+        "user_lp_token_account": "$input.user_lp_token_account",
+        "user_base_token_account": "$input.user_base_token_account",
+        "user_quote_token_account": "$input.user_quote_token_account",
+        "owner": "$wallet",
+        "market_event_queue": "$input.market_event_queue",
+        "market_bids": "$input.market_bids",
+        "market_asks": "$input.market_asks"
+      }
+    }
+  }
+}

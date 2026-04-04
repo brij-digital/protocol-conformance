@@ -1,10 +1,15 @@
 import BN from 'bn.js';
+import { Decimal } from 'decimal.js';
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
+  DEFAULT_RECENT_SLOT_DURATION_MS,
+  KaminoMarket,
+  KaminoReserve,
   LendingMarket,
   Obligation,
   PROGRAM_ID,
   Reserve,
+  type TokenOracleData,
   VanillaObligation,
   lendingMarketAuthPda,
   reservePdas,
@@ -20,23 +25,27 @@ export const KAMINO_LENDING_MARKET = new PublicKey('6H1RjvQv5vVhQ7m6d6rS8dW4fM7g
 export const KAMINO_RESERVE = new PublicKey('7bN5q2w4u7iZL6QX9Y6Nn5vK3mLxG8sP5cH4dK2rA1pE');
 export const KAMINO_LIQUIDITY_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 export const SYSVAR_INSTRUCTIONS = new PublicKey('Sysvar1nstructions1111111111111111111111111');
+export const KAMINO_RECENT_SLOT_DURATION_MS = DEFAULT_RECENT_SLOT_DURATION_MS;
 
-function cloneZeroedAccount<T extends { constructor: { discriminator: Buffer; layout: { span: number; encode: (value: unknown, buffer: Buffer) => number } } }>(
-  accountClass: T['constructor'] & {
-    decode: (buffer: Buffer) => T;
-  },
-): T {
-  const buffer = Buffer.alloc(8 + accountClass.layout.span);
-  accountClass.discriminator.copy(buffer, 0);
-  return accountClass.decode(buffer);
+function oneBsf() {
+  return {
+    value: [new BN('1152921504606846976'), new BN(0), new BN(0), new BN(0)],
+    padding: [new BN(0), new BN(0)],
+  };
 }
 
-function encodeAccount<T extends { constructor: { discriminator: Buffer; layout: { span: number; encode: (value: unknown, buffer: Buffer) => number } } }>(
-  accountClass: T['constructor'] & {
+function cloneZeroedAccount(accountClass: {
+  layout: { span: number; decode: (buffer: Buffer) => any };
+}): any {
+  return accountClass.layout.decode(Buffer.alloc(accountClass.layout.span));
+}
+
+function encodeAccount(
+  accountClass: {
     discriminator: Buffer;
     layout: { span: number; encode: (value: unknown, buffer: Buffer) => number };
   },
-  account: T,
+  account: unknown,
 ): Buffer {
   const body = Buffer.alloc(accountClass.layout.span);
   accountClass.layout.encode(account, body);
@@ -63,72 +72,79 @@ export async function createKaminoFixture() {
   const userDestinationLiquidity = userSourceLiquidity;
   const userDestinationCollateral = getAssociatedTokenAddressSync(reserveCollateralMint, KAMINO_OWNER, false, TOKEN_PROGRAM_ID);
 
-  const lendingMarketAccount = cloneZeroedAccount(LendingMarket);
-  lendingMarketAccount.version = new BN(1);
-  lendingMarketAccount.bumpSeed = new BN(lendingMarketAuthorityBump);
-  lendingMarketAccount.lendingMarketOwner = KAMINO_OWNER.toBase58();
-  lendingMarketAccount.lendingMarketOwnerCached = KAMINO_OWNER.toBase58();
-  lendingMarketAccount.referralFeeBps = 50;
-  lendingMarketAccount.autodeleverageEnabled = 1;
-  lendingMarketAccount.globalAllowedBorrowValue = new BN('500000000000');
-  lendingMarketAccount.minNetValueInObligationSf = new BN('1000000');
-  lendingMarketAccount.minInitialDepositAmount = new BN('1000');
-  lendingMarketAccount.name = Array.from(Buffer.from('KAMINO_MAINNET'.padEnd(32, '\0')));
-  lendingMarketAccount.proposerAuthority = KAMINO_OWNER.toBase58();
+  const lendingMarketFields = cloneZeroedAccount(LendingMarket);
+  lendingMarketFields.version = new BN(1);
+  lendingMarketFields.bumpSeed = new BN(lendingMarketAuthorityBump);
+  lendingMarketFields.lendingMarketOwner = KAMINO_OWNER.toBase58();
+  lendingMarketFields.lendingMarketOwnerCached = KAMINO_OWNER.toBase58();
+  lendingMarketFields.referralFeeBps = 50;
+  lendingMarketFields.autodeleverageEnabled = 1;
+  lendingMarketFields.globalAllowedBorrowValue = new BN('500000000000');
+  lendingMarketFields.minNetValueInObligationSf = new BN('1000000');
+  lendingMarketFields.minInitialDepositAmount = new BN('1000');
+  lendingMarketFields.name = Array.from(Buffer.from('KAMINO_MAINNET'.padEnd(32, '\0')));
+  lendingMarketFields.proposerAuthority = KAMINO_OWNER.toBase58();
 
-  const reserveAccount = cloneZeroedAccount(Reserve);
-  reserveAccount.version = new BN(1);
-  reserveAccount.lendingMarket = KAMINO_LENDING_MARKET.toBase58();
-  reserveAccount.liquidity.mintPubkey = KAMINO_LIQUIDITY_MINT.toBase58();
-  reserveAccount.liquidity.supplyVault = reserveLiquiditySupply.toBase58();
-  reserveAccount.liquidity.feeVault = reserveFeeVault.toBase58();
-  reserveAccount.liquidity.availableAmount = new BN('900000000');
-  reserveAccount.liquidity.borrowedAmountSf = new BN('150000000');
-  reserveAccount.liquidity.marketPriceSf = new BN('1000000000000000000');
-  reserveAccount.liquidity.mintDecimals = 6;
-  reserveAccount.liquidity.cumulativeBorrowRateBsf = new BN('1005000000000000000');
-  reserveAccount.liquidity.tokenProgram = TOKEN_PROGRAM_ID.toBase58();
-  reserveAccount.collateral.mintPubkey = reserveCollateralMint.toBase58();
-  reserveAccount.collateral.mintTotalSupply = new BN('300000000');
-  reserveAccount.collateral.supplyVault = reserveCollateralSupply.toBase58();
-  reserveAccount.config.loanToValuePct = 75;
-  reserveAccount.config.liquidationThresholdPct = 80;
-  reserveAccount.config.minLiquidationBonusBps = 100;
-  reserveAccount.config.maxLiquidationBonusBps = 500;
-  reserveAccount.config.borrowFactorPct = new BN(100);
-  reserveAccount.config.depositLimit = new BN('1000000000000');
-  reserveAccount.config.borrowLimit = new BN('700000000000');
-  reserveAccount.config.borrowRateCurve.points[0].utilizationRateBps = 0;
-  reserveAccount.config.borrowRateCurve.points[0].borrowRateBps = 100;
-  reserveAccount.config.borrowRateCurve.points[1].utilizationRateBps = 8000;
-  reserveAccount.config.borrowRateCurve.points[1].borrowRateBps = 650;
-  reserveAccount.config.tokenInfo.name = Array.from(Buffer.from('USDC'.padEnd(32, '\0')));
-  reserveAccount.config.tokenInfo.heuristic.lower = new BN('990000');
-  reserveAccount.config.tokenInfo.heuristic.upper = new BN('1010000');
-  reserveAccount.config.tokenInfo.heuristic.exp = new BN(6);
+  const reserveFields = cloneZeroedAccount(Reserve);
+  reserveFields.version = new BN(1);
+  reserveFields.lendingMarket = KAMINO_LENDING_MARKET.toBase58();
+  reserveFields.liquidity.mintPubkey = KAMINO_LIQUIDITY_MINT.toBase58();
+  reserveFields.liquidity.supplyVault = reserveLiquiditySupply.toBase58();
+  reserveFields.liquidity.feeVault = reserveFeeVault.toBase58();
+  reserveFields.liquidity.availableAmount = new BN('900000000');
+  reserveFields.liquidity.borrowedAmountSf = new BN('150000000');
+  reserveFields.liquidity.marketPriceSf = new BN('1000000000000000000');
+  reserveFields.liquidity.mintDecimals = new BN(6);
+  reserveFields.liquidity.cumulativeBorrowRateBsf = oneBsf();
+  reserveFields.liquidity.tokenProgram = TOKEN_PROGRAM_ID.toBase58();
+  reserveFields.collateral.mintPubkey = reserveCollateralMint.toBase58();
+  reserveFields.collateral.mintTotalSupply = new BN('300000000');
+  reserveFields.collateral.supplyVault = reserveCollateralSupply.toBase58();
+  reserveFields.config.loanToValuePct = 75;
+  reserveFields.config.liquidationThresholdPct = 80;
+  reserveFields.config.minLiquidationBonusBps = 100;
+  reserveFields.config.maxLiquidationBonusBps = 500;
+  reserveFields.config.borrowFactorPct = new BN(100);
+  reserveFields.config.depositLimit = new BN('1000000000000');
+  reserveFields.config.borrowLimit = new BN('700000000000');
+  reserveFields.config.borrowRateCurve.points[0].utilizationRateBps = 0;
+  reserveFields.config.borrowRateCurve.points[0].borrowRateBps = 100;
+  reserveFields.config.borrowRateCurve.points[1].utilizationRateBps = 8000;
+  reserveFields.config.borrowRateCurve.points[1].borrowRateBps = 650;
+  reserveFields.config.tokenInfo.name = Array.from(Buffer.from('USDC'.padEnd(32, '\0')));
+  reserveFields.config.tokenInfo.heuristic.lower = new BN('990000');
+  reserveFields.config.tokenInfo.heuristic.upper = new BN('1010000');
+  reserveFields.config.tokenInfo.heuristic.exp = new BN(6);
 
-  const obligationAccount = cloneZeroedAccount(Obligation);
-  obligationAccount.tag = new BN(0);
-  obligationAccount.lendingMarket = KAMINO_LENDING_MARKET.toBase58();
-  obligationAccount.owner = KAMINO_OWNER.toBase58();
-  obligationAccount.deposits[0].depositReserve = KAMINO_RESERVE.toBase58();
-  obligationAccount.deposits[0].depositedAmount = new BN('250000000');
-  obligationAccount.deposits[0].marketValueSf = new BN('300000000000000000');
-  obligationAccount.deposits[0].borrowedAmountAgainstThisCollateralInElevationGroup = new BN('0');
-  obligationAccount.lowestReserveDepositLiquidationLtv = new BN(80);
-  obligationAccount.depositedValueSf = new BN('300000000000000000');
-  obligationAccount.borrows[0].borrowReserve = KAMINO_RESERVE.toBase58();
-  obligationAccount.borrows[0].cumulativeBorrowRateBsf = new BN('1005000000000000000');
-  obligationAccount.borrows[0].borrowedAmountSf = new BN('120000000000000000');
-  obligationAccount.borrows[0].marketValueSf = new BN('120000000000000000');
-  obligationAccount.borrows[0].borrowFactorAdjustedMarketValueSf = new BN('120000000000000000');
-  obligationAccount.borrowFactorAdjustedDebtValueSf = new BN('120000000000000000');
-  obligationAccount.borrowedAssetsMarketValueSf = new BN('120000000000000000');
-  obligationAccount.allowedBorrowValueSf = new BN('225000000000000000');
-  obligationAccount.unhealthyBorrowValueSf = new BN('240000000000000000');
-  obligationAccount.hasDebt = 1;
-  obligationAccount.lowestReserveDepositMaxLtvPct = 75;
-  obligationAccount.highestBorrowFactorPct = new BN(100);
+  const obligationFields = cloneZeroedAccount(Obligation);
+  obligationFields.tag = new BN(0);
+  obligationFields.lendingMarket = KAMINO_LENDING_MARKET.toBase58();
+  obligationFields.owner = KAMINO_OWNER.toBase58();
+  obligationFields.deposits[0].depositReserve = KAMINO_RESERVE.toBase58();
+  obligationFields.deposits[0].depositedAmount = new BN('250000000');
+  obligationFields.deposits[0].marketValueSf = new BN('300000000000000000');
+  obligationFields.deposits[0].borrowedAmountAgainstThisCollateralInElevationGroup = new BN('0');
+  obligationFields.lowestReserveDepositLiquidationLtv = new BN(80);
+  obligationFields.depositedValueSf = new BN('300000000000000000');
+  obligationFields.borrows[0].borrowReserve = KAMINO_RESERVE.toBase58();
+  obligationFields.borrows[0].cumulativeBorrowRateBsf = oneBsf();
+  obligationFields.borrows[0].borrowedAmountSf = new BN('120000000000000000');
+  obligationFields.borrows[0].marketValueSf = new BN('120000000000000000');
+  obligationFields.borrows[0].borrowFactorAdjustedMarketValueSf = new BN('120000000000000000');
+  obligationFields.borrowFactorAdjustedDebtValueSf = new BN('120000000000000000');
+  obligationFields.borrowedAssetsMarketValueSf = new BN('120000000000000000');
+  obligationFields.allowedBorrowValueSf = new BN('225000000000000000');
+  obligationFields.unhealthyBorrowValueSf = new BN('240000000000000000');
+  obligationFields.hasDebt = 1;
+  obligationFields.lowestReserveDepositMaxLtvPct = 75;
+  obligationFields.highestBorrowFactorPct = new BN(100);
+
+  const lendingMarketBytes = encodeAccount(LendingMarket, lendingMarketFields);
+  const reserveBytes = encodeAccount(Reserve, reserveFields);
+  const obligationBytes = encodeAccount(Obligation, obligationFields);
+  const lendingMarketAccount = LendingMarket.decode(lendingMarketBytes);
+  const reserveAccount = Reserve.decode(reserveBytes);
+  const obligationAccount = Obligation.decode(obligationBytes);
 
   return {
     owner: KAMINO_OWNER,
@@ -150,9 +166,9 @@ export async function createKaminoFixture() {
     lendingMarketAccount,
     reserveAccount,
     obligationAccount,
-    lendingMarketBytes: Buffer.alloc(0),
-    reserveBytes: Buffer.alloc(0),
-    obligationBytes: encodeAccount(Obligation, obligationAccount),
+    lendingMarketBytes,
+    reserveBytes,
+    obligationBytes,
   };
 }
 
@@ -160,6 +176,7 @@ export const KAMINO_FIXTURE = await createKaminoFixture();
 
 export async function buildKaminoConnection() {
   const connection = new StaticAccountConnection();
+  connection.setSlot(1n);
   connection.setRawAccount(
     KAMINO_FIXTURE.lendingMarket.toBase58(),
     KAMINO_PROGRAM_ID,
@@ -176,4 +193,38 @@ export async function buildKaminoConnection() {
     KAMINO_FIXTURE.obligationBytes,
   );
   return connection;
+}
+
+export async function buildOfflineKaminoMarket() {
+  const connection = await buildKaminoConnection();
+  const tokenOracleData: TokenOracleData = {
+    mintAddress: KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
+    decimals: new Decimal(10).pow(KAMINO_FIXTURE.reserveAccount.liquidity.mintDecimals.toString()),
+    price: new Decimal(1),
+    timestamp: 1n,
+    valid: true,
+  };
+  const reserve = KaminoReserve.initialize(
+    KAMINO_FIXTURE.reserve.toBase58(),
+    KAMINO_FIXTURE.reserveAccount,
+    tokenOracleData,
+    connection as never,
+    KAMINO_RECENT_SLOT_DURATION_MS,
+    { deprecatedAssets: [] },
+  );
+  const reserves = new Map([[KAMINO_FIXTURE.reserve.toBase58(), reserve]]);
+
+  return {
+    connection,
+    market: KaminoMarket.loadWithReserves(
+      connection as never,
+      KAMINO_FIXTURE.lendingMarketAccount,
+      reserves,
+      KAMINO_FIXTURE.lendingMarket.toBase58(),
+      KAMINO_RECENT_SLOT_DURATION_MS,
+      KAMINO_PROGRAM_ID,
+    ),
+    reserve,
+    obligationType: new VanillaObligation(KAMINO_PROGRAM_ID),
+  };
 }

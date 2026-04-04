@@ -15,11 +15,54 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 process.env.APPPACK_RUNTIME_REGISTRY_PATH = path.resolve(
   moduleDir,
-  '../../../protocol-registry/registry.json',
+  '../../registry-overlay/registry.json',
 );
 
+type StoredAccount = { data: Buffer; owner: string };
+type Web3AccountInfo = {
+  data: Buffer;
+  owner: PublicKey;
+  executable: boolean;
+  lamports: number;
+  rentEpoch: number;
+};
+type RpcAccountInfo = {
+  data: [string, 'base64'];
+  owner: string;
+  executable: boolean;
+  lamports: number;
+  rentEpoch: bigint;
+  space: bigint;
+};
+
+function decodeMemcmpBytes(bytes: string, encoding?: string): Buffer {
+  if (encoding === 'base64') {
+    return Buffer.from(bytes, 'base64');
+  }
+  try {
+    return new PublicKey(bytes).toBuffer();
+  } catch {
+    return Buffer.from(bytes);
+  }
+}
+
+function asBigInt(value: bigint | number | undefined): bigint | undefined {
+  if (typeof value === 'bigint') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return BigInt(value);
+  }
+  return undefined;
+}
+
 export class StaticAccountConnection {
-  private readonly accounts = new Map<string, { data: Buffer; owner: string }>();
+  private readonly accounts = new Map<string, StoredAccount>();
+  private slot = 0n;
+
+  setSlot(slot: bigint | number): void {
+    this.slot = typeof slot === 'bigint' ? slot : BigInt(slot);
+  }
 
   setRawAccount(address: string, owner: string, data: Buffer = Buffer.alloc(0)): void {
     this.accounts.set(address, { data, owner });
@@ -41,15 +84,12 @@ export class StaticAccountConnection {
     this.setRawAccount(address, ORCA_PROGRAM_ID, encodePositionAccount(args));
   }
 
-  async getAccountInfo(address: PublicKey | string): Promise<{
-    data: Buffer;
-    owner: PublicKey;
-    executable: boolean;
-    lamports: number;
-    rentEpoch: number;
-  } | null> {
+  private getEntry(address: PublicKey | string): StoredAccount | null {
     const key = typeof address === 'string' ? address : address.toBase58();
-    const entry = this.accounts.get(key);
+    return this.accounts.get(key) ?? null;
+  }
+
+  private toWeb3AccountInfo(entry: StoredAccount | null): Web3AccountInfo | null {
     if (!entry) {
       return null;
     }
@@ -60,6 +100,118 @@ export class StaticAccountConnection {
       lamports: 0,
       rentEpoch: 0,
     };
+  }
+
+  private toRpcAccountInfo(entry: StoredAccount | null): RpcAccountInfo | null {
+    if (!entry) {
+      return null;
+    }
+    return {
+      data: [entry.data.toString('base64'), 'base64'],
+      owner: entry.owner,
+      executable: false,
+      lamports: 0,
+      rentEpoch: 0n,
+      space: BigInt(entry.data.length),
+    };
+  }
+
+  private createRpcRequest<TDirect, TSend>(direct: () => Promise<TDirect>, send: () => Promise<TSend>) {
+    const directPromise = direct();
+    return {
+      send,
+      then: directPromise.then.bind(directPromise),
+      catch: directPromise.catch.bind(directPromise),
+      finally: directPromise.finally.bind(directPromise),
+    };
+  }
+
+  getAccountInfo(address: PublicKey | string): Promise<Web3AccountInfo | null>;
+  getAccountInfo(address: PublicKey | string, _config: unknown): {
+    send: () => Promise<{ context: { slot: bigint }; value: RpcAccountInfo | null }>;
+    then: Promise<Web3AccountInfo | null>['then'];
+    catch: Promise<Web3AccountInfo | null>['catch'];
+    finally: Promise<Web3AccountInfo | null>['finally'];
+  };
+  getAccountInfo(address: PublicKey | string, config?: unknown) {
+    if (config !== undefined) {
+      return this.createRpcRequest(
+        async () => this.toWeb3AccountInfo(this.getEntry(address)),
+        async () => ({
+          context: { slot: this.slot },
+          value: this.toRpcAccountInfo(this.getEntry(address)),
+        }),
+      );
+    }
+    return Promise.resolve(this.toWeb3AccountInfo(this.getEntry(address)));
+  }
+
+  getMultipleAccounts(addresses: ReadonlyArray<PublicKey | string>, _config?: unknown) {
+    return this.createRpcRequest(
+      async () => addresses.map((address) => this.toWeb3AccountInfo(this.getEntry(address))),
+      async () => ({
+        context: { slot: this.slot },
+        value: addresses.map((address) => this.toRpcAccountInfo(this.getEntry(address))),
+      }),
+    );
+  }
+
+  getProgramAccounts(programId: PublicKey | string, config?: {
+    filters?: Array<{
+      dataSize?: bigint | number;
+      memcmp?: { offset: bigint | number; bytes: string; encoding?: string };
+    }>;
+  }) {
+    const owner = typeof programId === 'string' ? programId : programId.toBase58();
+    return this.createRpcRequest(
+      async () => this.collectProgramAccounts(owner, config?.filters),
+      async () => this.collectProgramAccounts(owner, config?.filters),
+    );
+  }
+
+  getSlot() {
+    return this.createRpcRequest(async () => this.slot, async () => this.slot);
+  }
+
+  private collectProgramAccounts(
+    owner: string,
+    filters?: Array<{
+      dataSize?: bigint | number;
+      memcmp?: { offset: bigint | number; bytes: string; encoding?: string };
+    }>,
+  ) {
+    const entries = [...this.accounts.entries()]
+      .filter(([, entry]) => entry.owner === owner)
+      .filter(([, entry]) => this.matchesFilters(entry.data, filters))
+      .map(([pubkey, entry]) => ({
+        pubkey,
+        account: this.toRpcAccountInfo(entry),
+      }));
+    return Promise.resolve(entries);
+  }
+
+  private matchesFilters(
+    data: Buffer,
+    filters?: Array<{
+      dataSize?: bigint | number;
+      memcmp?: { offset: bigint | number; bytes: string; encoding?: string };
+    }>,
+  ): boolean {
+    if (!filters || filters.length === 0) {
+      return true;
+    }
+    return filters.every((filter) => {
+      const dataSize = asBigInt(filter.dataSize);
+      if (dataSize !== undefined && BigInt(data.length) !== dataSize) {
+        return false;
+      }
+      if (!filter.memcmp) {
+        return true;
+      }
+      const offset = Number(asBigInt(filter.memcmp.offset) ?? 0n);
+      const expected = decodeMemcmpBytes(filter.memcmp.bytes, filter.memcmp.encoding);
+      return data.subarray(offset, offset + expected.length).equals(expected);
+    });
   }
 }
 
