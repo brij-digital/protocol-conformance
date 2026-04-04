@@ -9,7 +9,7 @@ import {
   ORCA_PROGRAM_ID,
   ORCA_WHIRLPOOL,
   TEST_WALLET,
-} from '../fixtures/orca.js';
+} from '../../test/orca/fixtures.js';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 

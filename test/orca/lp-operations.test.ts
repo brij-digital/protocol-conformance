@@ -29,8 +29,8 @@ import {
   TOKEN_MINT_A,
   TOKEN_MINT_B,
   TOKEN_PROGRAM,
-} from '../src/fixtures/orca.js';
-import { getTestWallet, StaticAccountConnection } from '../src/support/runtime.js';
+} from './fixtures.js';
+import { getTestWallet, StaticAccountConnection } from '../../src/support/runtime.js';
 
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 const ASSOCIATED_TOKEN_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';

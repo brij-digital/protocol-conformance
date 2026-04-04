@@ -23,7 +23,7 @@ import {
   TOKEN_PROGRAM,
   toCoreTickArray,
   toCoreWhirlpool,
-} from '../src/fixtures/orca.js';
+} from './fixtures.js';
 import {
   buildPositionBackedConnection,
   getExpectedTickArrayAddresses,
@@ -31,7 +31,7 @@ import {
   getTestWallet,
   getWalletAta,
   setTickArraysOnConnection,
-} from './orca-test-helpers.js';
+} from './helpers.js';
 
 function toCamelIncreaseLiquidityAccounts(accounts: Record<string, string>) {
   return {

@@ -11,8 +11,8 @@ import {
   PUMP_CORE_PROGRAM_ID,
   PUMP_CORE_PROTOCOL_ID,
   PUMP_CORE_SDK,
-} from '../pump-fixtures/pump-core.js';
-import { executeTransform, instructionPubkeys, loadRuntimePack } from './pump-test-helpers.js';
+} from './fixtures-core.js';
+import { executeTransform, instructionPubkeys, loadRuntimePack } from './helpers.js';
 
 const runtimePack = loadRuntimePack('../../../ec-ai-wallet/public/idl/pump_core.runtime.json');
 

@@ -8,13 +8,13 @@ import {
   ORCA_WHIRLPOOL,
   toCoreTickArray,
   toCoreWhirlpool,
-} from '../src/fixtures/orca.js';
+} from './fixtures.js';
 import {
   buildQuoteFixture,
   buildSwapExactInWriteInput,
   getTestWallet,
   toCamelSwapAccounts,
-} from './orca-test-helpers.js';
+} from './helpers.js';
 
 describe('Orca quote to swap integration', () => {
   it('pipes quote_exact_in into swap_exact_in for A->B', async () => {

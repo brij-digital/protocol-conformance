@@ -10,8 +10,8 @@ import {
   PUMP_AMM_PROGRAM_ID,
   PUMP_AMM_PROTOCOL_ID,
   PUMP_AMM_SDK,
-} from '../pump-fixtures/pump-amm.js';
-import { executeTransform, instructionPubkeys, lastInstruction, loadRuntimePack } from './pump-test-helpers.js';
+} from './fixtures-amm.js';
+import { executeTransform, instructionPubkeys, lastInstruction, loadRuntimePack } from './helpers.js';
 
 const runtimePack = loadRuntimePack('../../../ec-ai-wallet/public/idl/pump_amm.runtime.json');
 

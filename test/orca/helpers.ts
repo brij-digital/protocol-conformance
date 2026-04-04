@@ -20,8 +20,8 @@ import {
   TOKEN_PROGRAM,
   toCoreTickArray,
   toCoreWhirlpool,
-} from '../src/fixtures/orca.js';
-import { getTestWallet, StaticAccountConnection } from '../src/support/runtime.js';
+} from './fixtures.js';
+import { getTestWallet, StaticAccountConnection } from '../../src/support/runtime.js';
 
 export type JsonRecord = Record<string, unknown>;
 

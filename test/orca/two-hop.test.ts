@@ -27,14 +27,14 @@ import {
   TOKEN_PROGRAM,
   toCoreTickArray,
   toCoreWhirlpool,
-} from '../src/fixtures/orca.js';
-import { StaticAccountConnection, getTestWallet } from '../src/support/runtime.js';
+} from './fixtures.js';
+import { StaticAccountConnection, getTestWallet } from '../../src/support/runtime.js';
 import {
   buildTwoHopSwapV2WriteInput,
   getExpectedTickArrayAddressesForWhirlpool,
   getWalletAta,
   toCamelTwoHopSwapAccounts,
-} from './orca-test-helpers.js';
+} from './helpers.js';
 
 type TwoHopVector = {
   name: string;
