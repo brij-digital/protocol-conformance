@@ -7,9 +7,25 @@ import {
   tryGetNextSqrtPriceFromA,
   tryGetNextSqrtPriceFromB,
   tryReverseApplySwapFee,
+  swapQuoteByInputToken,
+  swapQuoteByOutputToken,
 } from '@orca-so/whirlpools-core';
 import { describe, expect, it } from 'vitest';
-import { runRegisteredComputeStep } from '@brij-digital/apppack-runtime';
+import { runRegisteredComputeStep, runRuntimeView } from '@brij-digital/apppack-runtime';
+import { address } from '@solana/kit';
+import { getTickArrayAddress, increaseLiquidityMethod } from '@orca-so/whirlpools-client';
+import {
+  buildCustomTickArrayArgs,
+  buildWhirlpoolArgs,
+  ORCA_PROGRAM_ID,
+  ORCA_WHIRLPOOL,
+  REWARD_MINTS,
+  REWARD_VAULTS,
+  TOKEN_MINT_A,
+  TOKEN_MINT_B,
+  toCoreTickArray,
+  toCoreWhirlpool,
+} from '../src/fixtures/orca.js';
 import { getTestWallet, StaticAccountConnection } from '../src/support/runtime.js';
 
 type JsonRecord = Record<string, unknown>;
@@ -587,6 +603,431 @@ describe('Orca transform parity', () => {
       }, '$payload');
 
       expect(actual).toEqual(toComparable(expectedSwapStepExactOutput(vector)));
+    });
+  });
+
+  describe('quote_exact_in__derive_tick_arrays', () => {
+    const vectors = [
+      {
+        label: 'a-to-b current array from token mint a',
+        whirlpoolData: { token_mint_a: REWARD_MINTS[0], tick_spacing: 64, tick_current_index: 0 },
+        input: { whirlpool: ORCA_WHIRLPOOL, token_in_mint: REWARD_MINTS[0] },
+        expectedStarts: [0, -5632, -11264],
+      },
+      {
+        label: 'b-to-a anchor shifts by tick spacing',
+        whirlpoolData: { token_mint_a: REWARD_MINTS[0], tick_spacing: 64, tick_current_index: 5568 },
+        input: { whirlpool: ORCA_WHIRLPOOL, token_in_mint: REWARD_MINTS[1] },
+        expectedStarts: [5632, 11264, 16896],
+      },
+    ];
+
+    it.each(vectors)('$label', async ({ whirlpoolData, input, expectedStarts }) => {
+      const actual = await executeTransform(
+        'quote_exact_in__derive_tick_arrays',
+        {
+          protocol: { programId: ORCA_PROGRAM_ID },
+          whirlpool_data: whirlpoolData,
+          input,
+        },
+        '$',
+      );
+
+      const expectedAddresses = await Promise.all(
+        expectedStarts.map(async (startIndex) => (await getTickArrayAddress(address(ORCA_WHIRLPOOL), startIndex))[0]),
+      );
+
+      const actualRecord = actual as JsonRecord;
+      expect(actualRecord.tick_array_starts).toEqual(expectedStarts);
+      expect(actualRecord.tick_arrays).toEqual(expectedAddresses);
+    });
+  });
+
+  describe('quote_exact_out__derive_tick_arrays', () => {
+    const vectors = [
+      {
+        label: 'a-to-b reuses current array start',
+        whirlpoolData: { token_mint_a: REWARD_MINTS[0], token_mint_b: REWARD_MINTS[1], tick_spacing: 2, tick_current_index: 0 },
+        input: { whirlpool: ORCA_WHIRLPOOL, token_in_mint: REWARD_MINTS[0], token_out_mint: REWARD_MINTS[1] },
+        expectedStarts: [0, -176, -352],
+      },
+      {
+        label: 'b-to-a positive traversal advances through three arrays',
+        whirlpoolData: { token_mint_a: REWARD_MINTS[0], token_mint_b: REWARD_MINTS[2], tick_spacing: 3, tick_current_index: 792 },
+        input: { whirlpool: ORCA_WHIRLPOOL, token_in_mint: REWARD_MINTS[2], token_out_mint: REWARD_MINTS[0] },
+        expectedStarts: [792, 1056, 1320],
+      },
+    ];
+
+    it.each(vectors)('$label', async ({ whirlpoolData, input, expectedStarts }) => {
+      const actual = await executeTransform(
+        'quote_exact_out__derive_tick_arrays',
+        {
+          protocol: { programId: ORCA_PROGRAM_ID },
+          whirlpool_data: whirlpoolData,
+          input,
+        },
+        '$',
+      );
+
+      const expectedAddresses = await Promise.all(
+        expectedStarts.map(async (startIndex) => (await getTickArrayAddress(address(ORCA_WHIRLPOOL), startIndex))[0]),
+      );
+
+      const actualRecord = actual as JsonRecord;
+      expect(actualRecord.tick_array_starts).toEqual(expectedStarts);
+      expect(actualRecord.tick_arrays).toEqual(expectedAddresses);
+    });
+  });
+
+  describe('increase_liquidity_by_token_amounts_v2__normalize_method', () => {
+    const vectors = [
+      {
+        label: 'small token maxima',
+        method: {
+          tokenMaxA: 10n,
+          tokenMaxB: 12n,
+          minSqrtPrice: 1n,
+          maxSqrtPrice: 2n,
+        },
+      },
+      {
+        label: 'large bigint bounds',
+        method: {
+          tokenMaxA: 1234567890123456789n,
+          tokenMaxB: 9876543210n,
+          minSqrtPrice: 4295048016n,
+          maxSqrtPrice: 79226673515401279992447579055n,
+        },
+      },
+    ];
+
+    it.each(vectors)('$label', async ({ method }) => {
+      const actual = await executeTransform(
+        'increase_liquidity_by_token_amounts_v2__normalize_method',
+        {
+          input: {
+            method: toComparable(method),
+          },
+        },
+        '$method_borsh',
+      );
+
+      expect(actual).toEqual({
+        ByTokenAmounts: {
+          tokenMaxA: method.tokenMaxA.toString(),
+          tokenMaxB: method.tokenMaxB.toString(),
+          minSqrtPrice: method.minSqrtPrice.toString(),
+          maxSqrtPrice: method.maxSqrtPrice.toString(),
+        },
+      });
+    });
+  });
+
+  describe('position_range__derive_tick_arrays', () => {
+    const vectors = [
+      {
+        label: 'symmetric range on spacing 64',
+        whirlpoolData: { tick_spacing: 64 },
+        positionData: {
+          whirlpool: ORCA_WHIRLPOOL,
+          tick_lower_index: -5632,
+          tick_upper_index: 5632,
+        },
+      },
+      {
+        label: 'asymmetric range on spacing 1',
+        whirlpoolData: { tick_spacing: 1 },
+        positionData: {
+          whirlpool: ORCA_WHIRLPOOL,
+          tick_lower_index: 37,
+          tick_upper_index: 205,
+        },
+      },
+    ];
+
+    it.each(vectors)('$label', async ({ whirlpoolData, positionData }) => {
+      const actual = await executeTransform(
+        'position_range__derive_tick_arrays',
+        {
+          protocol: { programId: ORCA_PROGRAM_ID },
+          whirlpool_data: whirlpoolData,
+          position_data: positionData,
+        },
+        '$',
+      );
+      const ticksPerArray = whirlpoolData.tick_spacing * 88;
+      const lowerStart = Math.floor(positionData.tick_lower_index / ticksPerArray) * ticksPerArray;
+      const upperStart = Math.floor(positionData.tick_upper_index / ticksPerArray) * ticksPerArray;
+      const [expectedLower] = await getTickArrayAddress(address(ORCA_WHIRLPOOL), lowerStart);
+      const [expectedUpper] = await getTickArrayAddress(address(ORCA_WHIRLPOOL), upperStart);
+
+      expect(actual).toEqual(
+        expect.objectContaining({
+          tick_array_lower: expectedLower,
+          tick_array_upper: expectedUpper,
+        }),
+      );
+    });
+  });
+
+  describe('collect_reward_v2__derive_reward_accounts', () => {
+    const vectors = [
+      { label: 'reward index 0', rewardIndex: 0 },
+      { label: 'reward index 2', rewardIndex: 2 },
+    ];
+
+    it.each(vectors)('$label', async ({ rewardIndex }) => {
+      const actual = await executeTransform(
+        'collect_reward_v2__derive_reward_accounts',
+        {
+          input: { reward_index: rewardIndex },
+          whirlpool_data: {
+            reward_infos: REWARD_MINTS.map((mint, index) => ({
+              mint,
+              vault: REWARD_VAULTS[index],
+            })),
+          },
+        },
+        '$',
+      );
+
+      expect(actual).toEqual(
+        expect.objectContaining({
+          reward_mint: REWARD_MINTS[rewardIndex],
+          reward_vault: REWARD_VAULTS[rewardIndex],
+        }),
+      );
+    });
+  });
+
+  describe('quote_exact_in__quote_math', () => {
+    const vectors = [
+      {
+        label: 'a-to-b sparse initialized ticks',
+        whirlpoolArgs: buildWhirlpoolArgs({
+          tickCurrentIndex: 120,
+          tickSpacing: 4,
+          sqrtPrice: tickIndexToSqrtPrice(120),
+          feeRate: 1800,
+          liquidity: 720000n,
+        }),
+        input: {
+          whirlpool: ORCA_WHIRLPOOL,
+          token_in_mint: TOKEN_MINT_A,
+          token_out_mint: TOKEN_MINT_B,
+          amount_in: '6800',
+          slippage_bps: '220',
+        },
+        aToB: true,
+        tickArrayArgs: [
+          buildCustomTickArrayArgs(0, [
+            { offset: 30, liquidityNet: 6000n, liquidityGross: 6000n },
+            { offset: 28, liquidityNet: -2000n, liquidityGross: 2000n },
+            { offset: 24, liquidityNet: 3500n, liquidityGross: 3500n },
+          ]),
+          buildCustomTickArrayArgs(-352, [
+            { offset: 84, liquidityNet: 8000n, liquidityGross: 8000n },
+            { offset: 70, liquidityNet: -1500n, liquidityGross: 1500n },
+          ]),
+          buildCustomTickArrayArgs(-704, []),
+        ],
+      },
+      {
+        label: 'b-to-a mixed liquidity changes',
+        whirlpoolArgs: buildWhirlpoolArgs({
+          tickCurrentIndex: 792,
+          tickSpacing: 3,
+          sqrtPrice: tickIndexToSqrtPrice(792),
+          feeRate: 1000,
+          liquidity: 950000n,
+        }),
+        input: {
+          whirlpool: ORCA_WHIRLPOOL,
+          token_in_mint: TOKEN_MINT_B,
+          token_out_mint: TOKEN_MINT_A,
+          amount_in: '7300',
+          slippage_bps: '180',
+        },
+        aToB: false,
+        tickArrayArgs: [
+          buildCustomTickArrayArgs(792, [
+            { offset: 1, liquidityNet: 3000n, liquidityGross: 3000n },
+            { offset: 5, liquidityNet: -1500n, liquidityGross: 1500n },
+            { offset: 20, liquidityNet: 7000n, liquidityGross: 7000n },
+          ]),
+          buildCustomTickArrayArgs(1056, [
+            { offset: 0, liquidityNet: -2500n, liquidityGross: 2500n },
+            { offset: 11, liquidityNet: 4500n, liquidityGross: 4500n },
+          ]),
+          buildCustomTickArrayArgs(1320, [{ offset: 8, liquidityNet: 9000n, liquidityGross: 9000n }]),
+        ],
+      },
+    ];
+
+    it.each(vectors)('$label', async ({ whirlpoolArgs, input, aToB, tickArrayArgs }) => {
+      const connection = new StaticAccountConnection();
+      connection.setWhirlpool(whirlpoolArgs);
+      const tickArrayStarts = tickArrayArgs.map((tickArray) => tickArray.startTickIndex);
+      const tickArrays = await Promise.all(
+        tickArrayStarts.map(async (startIndex) => (await getTickArrayAddress(address(ORCA_WHIRLPOOL), startIndex))[0]),
+      );
+      tickArrays.forEach((tickArrayAddress, index) => {
+        connection.setTickArray(tickArrayAddress, tickArrayArgs[index]);
+      });
+      const view = await runRuntimeView({
+        protocolId: 'orca-whirlpool-mainnet',
+        operationId: 'quote_exact_in',
+        input: {
+          ...input,
+          unwrap_sol_output: false,
+        },
+        connection: connection as never,
+        walletPublicKey: getTestWallet(),
+      });
+      const expected = swapQuoteByInputToken(
+        BigInt(input.amount_in),
+        aToB,
+        Number(input.slippage_bps),
+        toCoreWhirlpool(whirlpoolArgs),
+        undefined,
+        tickArrayArgs.map(toCoreTickArray),
+        0n,
+        undefined,
+        undefined,
+      );
+      const output = view.output as JsonRecord;
+
+      expect(view.derived.tick_array_starts).toEqual(tickArrayStarts);
+      expect(view.derived.tick_arrays).toEqual(tickArrays);
+      expect(output.estimated_out).toBe(expected.tokenEstOut.toString());
+      expect(output.minimum_out).toBe(expected.tokenMinOut.toString());
+      expect(output.pool_fee_bps).toBe(expected.tradeFeeRateMin);
+    });
+  });
+
+  describe('quote_exact_out__quote_math', () => {
+    const vectors = [
+      {
+        label: 'a-to-b exact output smoke-style window',
+        whirlpoolArgs: buildWhirlpoolArgs({
+          tickCurrentIndex: 0,
+          tickSpacing: 2,
+          sqrtPrice: 1n << 64n,
+          feeRate: 3000,
+          liquidity: 265000n,
+        }),
+        input: {
+          whirlpool: ORCA_WHIRLPOOL,
+          token_in_mint: TOKEN_MINT_A,
+          token_out_mint: TOKEN_MINT_B,
+          amount_out: '500',
+          slippage_bps: '1000',
+        },
+        aToB: true,
+        tickArrayArgs: [
+          buildCustomTickArrayArgs(0, Array.from({ length: 88 }, (_, offset) => ({
+            offset,
+            liquidityNet: 1000n,
+            liquidityGross: 1000n,
+          }))),
+          buildCustomTickArrayArgs(-176, Array.from({ length: 88 }, (_, offset) => ({
+            offset,
+            liquidityNet: -1000n,
+            liquidityGross: 1000n,
+          }))),
+          buildCustomTickArrayArgs(-352, []),
+        ],
+      },
+      {
+        label: 'b-to-a exact output with widened positive traversal',
+        whirlpoolArgs: buildWhirlpoolArgs({
+          tickCurrentIndex: 0,
+          tickSpacing: 2,
+          sqrtPrice: 1n << 64n,
+          feeRate: 3000,
+          protocolFeeRate: 3000,
+          liquidity: 265000n,
+        }),
+        input: {
+          whirlpool: ORCA_WHIRLPOOL,
+          token_in_mint: TOKEN_MINT_B,
+          token_out_mint: TOKEN_MINT_A,
+          amount_out: '500',
+          slippage_bps: '1000',
+        },
+        aToB: false,
+        tickArrayArgs: [
+          buildCustomTickArrayArgs(0, Array.from({ length: 88 }, (_, offset) => ({
+            offset,
+            liquidityNet: -1000n,
+            liquidityGross: 1000n,
+          }))),
+          buildCustomTickArrayArgs(176, Array.from({ length: 88 }, (_, offset) => ({
+            offset,
+            liquidityNet: -1000n,
+            liquidityGross: 1000n,
+          }))),
+          buildCustomTickArrayArgs(352, Array.from({ length: 88 }, (_, offset) => ({
+            offset,
+            liquidityNet: -1000n,
+            liquidityGross: 1000n,
+          }))),
+        ],
+        coreReferenceTickArrayArgs: [
+          buildCustomTickArrayArgs(-352, Array.from({ length: 88 }, (_, offset) => ({
+            offset,
+            liquidityNet: 1000n,
+            liquidityGross: 1000n,
+          }))),
+          buildCustomTickArrayArgs(-176, Array.from({ length: 88 }, (_, offset) => ({
+            offset,
+            liquidityNet: 1000n,
+            liquidityGross: 1000n,
+          }))),
+        ],
+      },
+    ];
+
+    it.each(vectors)('$label', async ({ whirlpoolArgs, input, aToB, tickArrayArgs, coreReferenceTickArrayArgs }) => {
+      const connection = new StaticAccountConnection();
+      connection.setWhirlpool(whirlpoolArgs);
+      const tickArrayStarts = tickArrayArgs.map((tickArray) => tickArray.startTickIndex);
+      const tickArrays = await Promise.all(
+        tickArrayStarts.map(async (startIndex) => (await getTickArrayAddress(address(ORCA_WHIRLPOOL), startIndex))[0]),
+      );
+      tickArrays.forEach((tickArrayAddress, index) => {
+        connection.setTickArray(tickArrayAddress, tickArrayArgs[index]);
+      });
+      const view = await runRuntimeView({
+        protocolId: 'orca-whirlpool-mainnet',
+        operationId: 'quote_exact_out',
+        input: {
+          ...input,
+          unwrap_sol_output: false,
+        },
+        connection: connection as never,
+        walletPublicKey: getTestWallet(),
+      });
+      const expected = swapQuoteByOutputToken(
+        BigInt(input.amount_out),
+        aToB,
+        Number(input.slippage_bps),
+        toCoreWhirlpool(whirlpoolArgs),
+        undefined,
+        [...(coreReferenceTickArrayArgs ?? []), ...tickArrayArgs].map(toCoreTickArray),
+        0n,
+        undefined,
+        undefined,
+      );
+      const output = view.output as JsonRecord;
+
+      expect(view.derived.tick_array_starts).toEqual(tickArrayStarts);
+      expect(view.derived.tick_arrays).toEqual(tickArrays);
+      expect(output.amount_out).toBe(input.amount_out);
+      expect(output.estimated_in).toBe(expected.tokenEstIn.toString());
+      expect(output.maximum_in).toBe(expected.tokenMaxIn.toString());
+      expect(output.pool_fee_bps).toBe(expected.tradeFeeRateMin);
     });
   });
 });
