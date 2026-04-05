@@ -5,8 +5,8 @@
     "moduleResolution": "NodeNext",
     "baseUrl": ".",
     "paths": {
-      "@brij-digital/apppack-runtime": ["../apppack-runtime/src/index.ts"],
-      "@brij-digital/apppack-runtime/*": ["../apppack-runtime/src/*.ts"]
+      "@brij-digital/apppack-runtime": ["../protocol-runtime/src/index.ts"],
+      "@brij-digital/apppack-runtime/*": ["../protocol-runtime/src/*.ts"]
     },
     "strict": true,
     "esModuleInterop": true,
