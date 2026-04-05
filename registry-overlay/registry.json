@@ -108,19 +108,6 @@
         "/raydium-amm"
       ],
       "status": "active"
-    },
-    {
-      "id": "raydium-clmm-mainnet",
-      "name": "Raydium CLMM",
-      "network": "mainnet-beta",
-      "programId": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
-      "codamaIdlPath": "/codama/raydium-clmm.json",
-      "agentRuntimePath": "/runtime/raydium-clmm.json",
-      "transport": "local-raydium-clmm",
-      "supportedCommands": [
-        "/raydium-clmm"
-      ],
-      "status": "active"
     }
   ]
 }
