@@ -1,5 +1,6 @@
 import BN from 'bn.js';
 import { none } from '@solana/kit';
+import type { Address } from '@solana/kit';
 import {
   PROGRAM_ID,
   Obligation,
@@ -10,10 +11,15 @@ import {
 } from '@kamino-finance/klend-sdk';
 import { prepareRuntimeInstruction, previewIdlInstruction, runRuntimeView } from '@brij-digital/apppack-runtime';
 import { describe, expect, it } from 'vitest';
+import { asAddress, instructionDataAsBuffer } from './address.js';
 import { KAMINO_FIXTURE, KAMINO_PROGRAM_ID, KAMINO_PROTOCOL_ID } from './fixtures.js';
 
 function sdkSigner(address: string) {
   return { address } as never;
+}
+
+function sdkAddress(value: string): Address {
+  return asAddress(value);
 }
 
 function comparableSdkAccounts(
@@ -61,24 +67,24 @@ describe('Kamino lending parity', () => {
       { liquidityAmount: new BN(prepared.args.liquidity_amount as string) },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
-        obligation: KAMINO_FIXTURE.obligation.toBase58(),
-        lendingMarket: KAMINO_FIXTURE.lendingMarket.toBase58(),
-        lendingMarketAuthority: KAMINO_FIXTURE.lendingMarketAuthority.toBase58(),
-        reserve: KAMINO_FIXTURE.reserve.toBase58(),
-        reserveLiquidityMint: KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
-        reserveLiquiditySupply: KAMINO_FIXTURE.reserveLiquiditySupply.toBase58(),
-        reserveCollateralMint: KAMINO_FIXTURE.reserveCollateralMint.toBase58(),
-        reserveDestinationDepositCollateral: KAMINO_FIXTURE.reserveCollateralSupply.toBase58(),
-        userSourceLiquidity: KAMINO_FIXTURE.userSourceLiquidity.toBase58(),
+        obligation: sdkAddress(KAMINO_FIXTURE.obligation.toBase58()),
+        lendingMarket: sdkAddress(KAMINO_FIXTURE.lendingMarket.toBase58()),
+        lendingMarketAuthority: sdkAddress(KAMINO_FIXTURE.lendingMarketAuthority.toBase58()),
+        reserve: sdkAddress(KAMINO_FIXTURE.reserve.toBase58()),
+        reserveLiquidityMint: sdkAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58()),
+        reserveLiquiditySupply: sdkAddress(KAMINO_FIXTURE.reserveLiquiditySupply.toBase58()),
+        reserveCollateralMint: sdkAddress(KAMINO_FIXTURE.reserveCollateralMint.toBase58()),
+        reserveDestinationDepositCollateral: sdkAddress(KAMINO_FIXTURE.reserveCollateralSupply.toBase58()),
+        userSourceLiquidity: sdkAddress(KAMINO_FIXTURE.userSourceLiquidity.toBase58()),
         placeholderUserDestinationCollateral: none(),
-        collateralTokenProgram: KAMINO_FIXTURE.collateralTokenProgram.toBase58(),
-        liquidityTokenProgram: KAMINO_FIXTURE.tokenProgram.toBase58(),
-        instructionSysvarAccount: KAMINO_FIXTURE.instructionSysvar.toBase58(),
+        collateralTokenProgram: sdkAddress(KAMINO_FIXTURE.collateralTokenProgram.toBase58()),
+        liquidityTokenProgram: sdkAddress(KAMINO_FIXTURE.tokenProgram.toBase58()),
+        instructionSysvarAccount: sdkAddress(KAMINO_FIXTURE.instructionSysvar.toBase58()),
       },
     );
 
     expect(runtimePreview.programId).toBe(KAMINO_PROGRAM_ID);
-    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(sdkInstruction.data));
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(instructionDataAsBuffer(sdkInstruction.data));
     expect(runtimePreview.keys).toEqual(comparableSdkAccounts(sdkInstruction.accounts as never));
   });
 
@@ -114,22 +120,22 @@ describe('Kamino lending parity', () => {
       { liquidityAmount: new BN(prepared.args.liquidity_amount as string) },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
-        obligation: KAMINO_FIXTURE.obligation.toBase58(),
-        lendingMarket: KAMINO_FIXTURE.lendingMarket.toBase58(),
-        lendingMarketAuthority: KAMINO_FIXTURE.lendingMarketAuthority.toBase58(),
-        borrowReserve: KAMINO_FIXTURE.reserve.toBase58(),
-        borrowReserveLiquidityMint: KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
-        reserveSourceLiquidity: KAMINO_FIXTURE.reserveLiquiditySupply.toBase58(),
-        borrowReserveLiquidityFeeReceiver: KAMINO_FIXTURE.reserveFeeVault.toBase58(),
-        userDestinationLiquidity: KAMINO_FIXTURE.userDestinationLiquidity.toBase58(),
+        obligation: sdkAddress(KAMINO_FIXTURE.obligation.toBase58()),
+        lendingMarket: sdkAddress(KAMINO_FIXTURE.lendingMarket.toBase58()),
+        lendingMarketAuthority: sdkAddress(KAMINO_FIXTURE.lendingMarketAuthority.toBase58()),
+        borrowReserve: sdkAddress(KAMINO_FIXTURE.reserve.toBase58()),
+        borrowReserveLiquidityMint: sdkAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58()),
+        reserveSourceLiquidity: sdkAddress(KAMINO_FIXTURE.reserveLiquiditySupply.toBase58()),
+        borrowReserveLiquidityFeeReceiver: sdkAddress(KAMINO_FIXTURE.reserveFeeVault.toBase58()),
+        userDestinationLiquidity: sdkAddress(KAMINO_FIXTURE.userDestinationLiquidity.toBase58()),
         referrerTokenState: none(),
-        tokenProgram: KAMINO_FIXTURE.tokenProgram.toBase58(),
-        instructionSysvarAccount: KAMINO_FIXTURE.instructionSysvar.toBase58(),
+        tokenProgram: sdkAddress(KAMINO_FIXTURE.tokenProgram.toBase58()),
+        instructionSysvarAccount: sdkAddress(KAMINO_FIXTURE.instructionSysvar.toBase58()),
       },
     );
 
     expect(runtimePreview.programId).toBe(String(PROGRAM_ID));
-    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(sdkInstruction.data));
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(instructionDataAsBuffer(sdkInstruction.data));
     const expectedKeys = comparableSdkAccounts(sdkInstruction.accounts as never);
 
     expect(runtimePreview.keys.map((entry) => entry.pubkey)).toEqual(expectedKeys.map((entry) => entry.pubkey));
@@ -177,19 +183,19 @@ describe('Kamino lending parity', () => {
       { liquidityAmount: new BN(prepared.args.liquidity_amount as string) },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
-        obligation: KAMINO_FIXTURE.obligation.toBase58(),
-        lendingMarket: KAMINO_FIXTURE.lendingMarket.toBase58(),
-        repayReserve: KAMINO_FIXTURE.reserve.toBase58(),
-        reserveLiquidityMint: KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
-        reserveDestinationLiquidity: KAMINO_FIXTURE.reserveLiquiditySupply.toBase58(),
-        userSourceLiquidity: KAMINO_FIXTURE.userSourceLiquidity.toBase58(),
-        tokenProgram: KAMINO_FIXTURE.tokenProgram.toBase58(),
-        instructionSysvarAccount: KAMINO_FIXTURE.instructionSysvar.toBase58(),
+        obligation: sdkAddress(KAMINO_FIXTURE.obligation.toBase58()),
+        lendingMarket: sdkAddress(KAMINO_FIXTURE.lendingMarket.toBase58()),
+        repayReserve: sdkAddress(KAMINO_FIXTURE.reserve.toBase58()),
+        reserveLiquidityMint: sdkAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58()),
+        reserveDestinationLiquidity: sdkAddress(KAMINO_FIXTURE.reserveLiquiditySupply.toBase58()),
+        userSourceLiquidity: sdkAddress(KAMINO_FIXTURE.userSourceLiquidity.toBase58()),
+        tokenProgram: sdkAddress(KAMINO_FIXTURE.tokenProgram.toBase58()),
+        instructionSysvarAccount: sdkAddress(KAMINO_FIXTURE.instructionSysvar.toBase58()),
       },
     );
 
     expect(runtimePreview.programId).toBe(KAMINO_PROGRAM_ID);
-    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(sdkInstruction.data));
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(instructionDataAsBuffer(sdkInstruction.data));
     expect(runtimePreview.keys).toEqual(comparableSdkAccounts(sdkInstruction.accounts as never));
   });
 
@@ -223,19 +229,19 @@ describe('Kamino lending parity', () => {
       { collateralAmount: new BN(prepared.args.collateral_amount as string) },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
-        obligation: KAMINO_FIXTURE.obligation.toBase58(),
-        lendingMarket: KAMINO_FIXTURE.lendingMarket.toBase58(),
-        lendingMarketAuthority: KAMINO_FIXTURE.lendingMarketAuthority.toBase58(),
-        withdrawReserve: KAMINO_FIXTURE.reserve.toBase58(),
-        reserveSourceCollateral: KAMINO_FIXTURE.reserveCollateralSupply.toBase58(),
-        userDestinationCollateral: KAMINO_FIXTURE.userDestinationCollateral.toBase58(),
-        tokenProgram: KAMINO_FIXTURE.tokenProgram.toBase58(),
-        instructionSysvarAccount: KAMINO_FIXTURE.instructionSysvar.toBase58(),
+        obligation: sdkAddress(KAMINO_FIXTURE.obligation.toBase58()),
+        lendingMarket: sdkAddress(KAMINO_FIXTURE.lendingMarket.toBase58()),
+        lendingMarketAuthority: sdkAddress(KAMINO_FIXTURE.lendingMarketAuthority.toBase58()),
+        withdrawReserve: sdkAddress(KAMINO_FIXTURE.reserve.toBase58()),
+        reserveSourceCollateral: sdkAddress(KAMINO_FIXTURE.reserveCollateralSupply.toBase58()),
+        userDestinationCollateral: sdkAddress(KAMINO_FIXTURE.userDestinationCollateral.toBase58()),
+        tokenProgram: sdkAddress(KAMINO_FIXTURE.tokenProgram.toBase58()),
+        instructionSysvarAccount: sdkAddress(KAMINO_FIXTURE.instructionSysvar.toBase58()),
       },
     );
 
     expect(runtimePreview.programId).toBe(KAMINO_PROGRAM_ID);
-    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(sdkInstruction.data));
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(instructionDataAsBuffer(sdkInstruction.data));
     expect(runtimePreview.keys).toEqual(comparableSdkAccounts(sdkInstruction.accounts as never));
   });
 

@@ -1,5 +1,6 @@
 import BN from 'bn.js';
 import { none } from '@solana/kit';
+import type { Address } from '@solana/kit';
 import {
   KaminoAction,
   KaminoObligation,
@@ -9,6 +10,7 @@ import {
 } from '@kamino-finance/klend-sdk';
 import { prepareRuntimeInstruction, previewIdlInstruction } from '@brij-digital/apppack-runtime';
 import { describe, expect, it } from 'vitest';
+import { asAddress, instructionDataAsBuffer } from './address.js';
 import {
   buildKaminoConnection,
   buildOfflineKaminoMarket,
@@ -21,6 +23,10 @@ function sdkSigner(address: string) {
   return { address } as never;
 }
 
+function sdkAddress(value: string): Address {
+  return asAddress(value);
+}
+
 function comparableSdkAccounts(
   accounts: Array<{ address: string; role: number }>,
 ): Array<{ pubkey: string; isSigner: boolean; isWritable: boolean }> {
@@ -31,7 +37,10 @@ function comparableSdkAccounts(
   }));
 }
 
-async function previewRuntimeInstruction(operationId: 'deposit' | 'borrow' | 'repay' | 'withdraw', input: object) {
+async function previewRuntimeInstruction(
+  operationId: 'deposit' | 'borrow' | 'repay' | 'withdraw',
+  input: Record<string, unknown>,
+) {
   const prepared = await prepareRuntimeInstruction({
     protocolId: KAMINO_PROTOCOL_ID,
     operationId,
@@ -60,8 +69,12 @@ describe('Kamino offline quotes', () => {
   it('loads lending market and reserve fixture bytes from the mock connection', async () => {
     const connection = await buildKaminoConnection();
     const [market, reserve] = await Promise.all([
-      LendingMarket.fetch(connection as never, KAMINO_FIXTURE.lendingMarket.toBase58(), KAMINO_PROGRAM_ID),
-      Reserve.fetch(connection as never, KAMINO_FIXTURE.reserve.toBase58(), KAMINO_PROGRAM_ID),
+      LendingMarket.fetch(
+        connection as never,
+        sdkAddress(KAMINO_FIXTURE.lendingMarket.toBase58()),
+        sdkAddress(KAMINO_PROGRAM_ID),
+      ),
+      Reserve.fetch(connection as never, sdkAddress(KAMINO_FIXTURE.reserve.toBase58()), sdkAddress(KAMINO_PROGRAM_ID)),
     ]);
 
     expect(market?.lendingMarketOwner).toBe(KAMINO_FIXTURE.owner.toBase58());
@@ -75,7 +88,7 @@ describe('Kamino offline quotes', () => {
     const action = await KaminoAction.buildDepositTxns(
       market,
       '1250000',
-      KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
+      sdkAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58()),
       sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
       obligationType,
       false,
@@ -101,7 +114,7 @@ describe('Kamino offline quotes', () => {
     });
 
     expect(runtimePreview.programId).toBe(KAMINO_PROGRAM_ID);
-    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(quoteIx.data));
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(instructionDataAsBuffer(quoteIx.data));
     expect(runtimePreview.keys).toEqual(comparableSdkAccounts(quoteIx.accounts as never));
   });
 
@@ -110,7 +123,7 @@ describe('Kamino offline quotes', () => {
     const action = await KaminoAction.buildBorrowTxns(
       market,
       '500000',
-      KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
+      sdkAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58()),
       sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
       obligationType,
       false,
@@ -134,7 +147,7 @@ describe('Kamino offline quotes', () => {
     });
 
     expect(runtimePreview.programId).toBe(KAMINO_PROGRAM_ID);
-    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(quoteIx.data));
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(instructionDataAsBuffer(quoteIx.data));
     const expectedKeys = comparableSdkAccounts(quoteIx.accounts as never);
 
     expect(runtimePreview.keys.map((entry) => entry.pubkey)).toEqual(expectedKeys.map((entry) => entry.pubkey));
@@ -157,7 +170,7 @@ describe('Kamino offline quotes', () => {
     const action = await KaminoAction.buildRepayTxns(
       market,
       '250000',
-      KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
+      sdkAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58()),
       sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
       obligationType,
       false,
@@ -181,7 +194,7 @@ describe('Kamino offline quotes', () => {
     });
 
     expect(runtimePreview.programId).toBe(KAMINO_PROGRAM_ID);
-    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(Buffer.from(quoteIx.data));
+    expect(Buffer.from(runtimePreview.dataBase64, 'base64')).toEqual(instructionDataAsBuffer(quoteIx.data));
     expect(runtimePreview.keys).toEqual(comparableSdkAccounts(quoteIx.accounts as never));
   });
 
@@ -190,7 +203,7 @@ describe('Kamino offline quotes', () => {
     const action = await KaminoAction.buildWithdrawTxns(
       market,
       '100000',
-      KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
+      sdkAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58()),
       sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
       obligationType,
       false,
@@ -204,23 +217,23 @@ describe('Kamino offline quotes', () => {
       { collateralAmount: expectedCollateralAmount },
       {
         owner: sdkSigner(KAMINO_FIXTURE.owner.toBase58()),
-        obligation: KAMINO_FIXTURE.obligation.toBase58(),
-        lendingMarket: KAMINO_FIXTURE.lendingMarket.toBase58(),
-        lendingMarketAuthority: KAMINO_FIXTURE.lendingMarketAuthority.toBase58(),
-        withdrawReserve: KAMINO_FIXTURE.reserve.toBase58(),
-        reserveLiquidityMint: KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
-        reserveCollateralMint: KAMINO_FIXTURE.reserveCollateralMint.toBase58(),
-        reserveLiquiditySupply: KAMINO_FIXTURE.reserveLiquiditySupply.toBase58(),
-        reserveSourceCollateral: KAMINO_FIXTURE.reserveCollateralSupply.toBase58(),
-        userDestinationLiquidity: KAMINO_FIXTURE.userDestinationLiquidity.toBase58(),
+        obligation: sdkAddress(KAMINO_FIXTURE.obligation.toBase58()),
+        lendingMarket: sdkAddress(KAMINO_FIXTURE.lendingMarket.toBase58()),
+        lendingMarketAuthority: sdkAddress(KAMINO_FIXTURE.lendingMarketAuthority.toBase58()),
+        withdrawReserve: sdkAddress(KAMINO_FIXTURE.reserve.toBase58()),
+        reserveLiquidityMint: sdkAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58()),
+        reserveCollateralMint: sdkAddress(KAMINO_FIXTURE.reserveCollateralMint.toBase58()),
+        reserveLiquiditySupply: sdkAddress(KAMINO_FIXTURE.reserveLiquiditySupply.toBase58()),
+        reserveSourceCollateral: sdkAddress(KAMINO_FIXTURE.reserveCollateralSupply.toBase58()),
+        userDestinationLiquidity: sdkAddress(KAMINO_FIXTURE.userDestinationLiquidity.toBase58()),
         placeholderUserDestinationCollateral: none(),
-        collateralTokenProgram: KAMINO_FIXTURE.collateralTokenProgram.toBase58(),
-        liquidityTokenProgram: KAMINO_FIXTURE.tokenProgram.toBase58(),
-        instructionSysvarAccount: KAMINO_FIXTURE.instructionSysvar.toBase58(),
+        collateralTokenProgram: sdkAddress(KAMINO_FIXTURE.collateralTokenProgram.toBase58()),
+        liquidityTokenProgram: sdkAddress(KAMINO_FIXTURE.tokenProgram.toBase58()),
+        instructionSysvarAccount: sdkAddress(KAMINO_FIXTURE.instructionSysvar.toBase58()),
       },
     );
 
-    expect(Buffer.from(quoteIx.data)).toEqual(Buffer.from(expectedIx.data));
+    expect(instructionDataAsBuffer(quoteIx.data)).toEqual(instructionDataAsBuffer(expectedIx.data));
     expect(comparableSdkAccounts(quoteIx.accounts as never)).toEqual(
       comparableSdkAccounts(expectedIx.accounts as never),
     );
@@ -239,10 +252,13 @@ describe('Kamino offline quotes', () => {
 
   it('computes obligation health from decoded state and loaded reserve metadata', async () => {
     const { market, obligationType } = await buildOfflineKaminoMarket();
-    const obligation = await KaminoObligation.load(market, await obligationType.toPda(
-      KAMINO_FIXTURE.lendingMarket.toBase58(),
-      KAMINO_FIXTURE.owner.toBase58(),
-    ));
+    const obligation = await KaminoObligation.load(
+      market,
+      await obligationType.toPda(
+        sdkAddress(KAMINO_FIXTURE.lendingMarket.toBase58()),
+        sdkAddress(KAMINO_FIXTURE.owner.toBase58()),
+      ),
+    );
     const healthFactor = obligation!.liquidationLtv().div(obligation!.loanToValue());
 
     expect(obligation).not.toBeNull();

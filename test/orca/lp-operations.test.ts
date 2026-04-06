@@ -148,14 +148,14 @@ async function expectQuoteIncreaseParity(options: {
       ? increaseLiquidityQuoteA(
           BigInt(options.specifiedTokenAmount),
           100,
-          whirlpoolArgs.sqrtPrice,
+          BigInt(whirlpoolArgs.sqrtPrice),
           -64,
           64,
         )
       : increaseLiquidityQuoteB(
           BigInt(options.specifiedTokenAmount),
           100,
-          whirlpoolArgs.sqrtPrice,
+          BigInt(whirlpoolArgs.sqrtPrice),
           -64,
           64,
         );
@@ -164,11 +164,11 @@ async function expectQuoteIncreaseParity(options: {
   expect(output.whirlpool).toBe(ORCA_WHIRLPOOL);
   expect(output.specified_token_mint).toBe(options.specifiedTokenMint);
   expect(output.specified_token_amount).toBe(options.specifiedTokenAmount);
-  expect(output.liquidity_delta).toBe(quote.liquidityDelta.toString());
-  expect(output.token_est_a).toBe(quote.tokenEstA.toString());
-  expect(output.token_est_b).toBe(quote.tokenEstB.toString());
-  expect(output.token_max_a).toBe(quote.tokenMaxA.toString());
-  expect(output.token_max_b).toBe(quote.tokenMaxB.toString());
+  expect(output.liquidity_delta).toBe(BigInt(quote.liquidityDelta).toString());
+  expect(output.token_est_a).toBe(BigInt(quote.tokenEstA).toString());
+  expect(output.token_est_b).toBe(BigInt(quote.tokenEstB).toString());
+  expect(output.token_max_a).toBe(BigInt(quote.tokenMaxA).toString());
+  expect(output.token_max_b).toBe(BigInt(quote.tokenMaxB).toString());
 }
 
 async function expectQuoteDecreaseParity(options: {
@@ -199,14 +199,14 @@ async function expectQuoteDecreaseParity(options: {
       ? decreaseLiquidityQuoteA(
           BigInt(options.specifiedTokenAmount),
           100,
-          whirlpoolArgs.sqrtPrice,
+          BigInt(whirlpoolArgs.sqrtPrice),
           -64,
           64,
         )
       : decreaseLiquidityQuoteB(
           BigInt(options.specifiedTokenAmount),
           100,
-          whirlpoolArgs.sqrtPrice,
+          BigInt(whirlpoolArgs.sqrtPrice),
           -64,
           64,
         );
@@ -215,11 +215,11 @@ async function expectQuoteDecreaseParity(options: {
   expect(output.whirlpool).toBe(ORCA_WHIRLPOOL);
   expect(output.specified_token_mint).toBe(options.specifiedTokenMint);
   expect(output.specified_token_amount).toBe(options.specifiedTokenAmount);
-  expect(output.liquidity_delta).toBe(quote.liquidityDelta.toString());
-  expect(output.token_est_a).toBe(quote.tokenEstA.toString());
-  expect(output.token_est_b).toBe(quote.tokenEstB.toString());
-  expect(output.token_min_a).toBe(quote.tokenMinA.toString());
-  expect(output.token_min_b).toBe(quote.tokenMinB.toString());
+  expect(output.liquidity_delta).toBe(BigInt(quote.liquidityDelta).toString());
+  expect(output.token_est_a).toBe(BigInt(quote.tokenEstA).toString());
+  expect(output.token_est_b).toBe(BigInt(quote.tokenEstB).toString());
+  expect(output.token_min_a).toBe(BigInt(quote.tokenMinA).toString());
+  expect(output.token_min_b).toBe(BigInt(quote.tokenMinB).toString());
 }
 
 describe('Orca LP runtime operations', () => {

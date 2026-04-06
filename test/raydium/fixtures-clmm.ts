@@ -6,6 +6,9 @@ import {
   getPdaPoolId,
   getPdaPoolVaultId,
   getPdaTickArrayAddress,
+  toApiV3Token,
+  type ApiV3PoolInfoConcentratedItem,
+  type ClmmKeys,
 } from '@raydium-io/raydium-sdk-v2';
 import { PublicKey } from '@solana/web3.js';
 
@@ -36,20 +39,46 @@ export const CLMM_TICK_ARRAYS = [-120, -60, 0].map((startIndex) =>
 export const CLMM_USER_TOKEN_A = getAssociatedTokenAddressSync(CLMM_MINT_A, CLMM_WALLET, false, TOKEN_PROGRAM_ID);
 export const CLMM_USER_TOKEN_B = getAssociatedTokenAddressSync(CLMM_MINT_B, CLMM_WALLET, false, TOKEN_PROGRAM_ID);
 
-export const CLMM_POOL_INFO = {
+export const CLMM_POOL_INFO: Pick<
+  ApiV3PoolInfoConcentratedItem,
+  'id' | 'programId' | 'mintA' | 'mintB' | 'config' | 'price'
+> = {
   id: CLMM_POOL_ID.toBase58(),
   programId: RAYDIUM_CLMM_PROGRAM_ID,
-  mintA: { address: CLMM_MINT_A.toBase58() },
-  mintB: { address: CLMM_MINT_B.toBase58() },
-  config: { id: CLMM_AMM_CONFIG.toBase58() },
-} as const;
+  mintA: toApiV3Token({
+    address: CLMM_MINT_A.toBase58(),
+    programId: TOKEN_PROGRAM_ID.toBase58(),
+    decimals: 9,
+    symbol: 'WSOL',
+    name: 'Wrapped SOL',
+  }),
+  mintB: toApiV3Token({
+    address: CLMM_MINT_B.toBase58(),
+    programId: TOKEN_PROGRAM_ID.toBase58(),
+    decimals: 6,
+    symbol: 'USDC',
+    name: 'USD Coin',
+  }),
+  config: {
+    id: CLMM_AMM_CONFIG.toBase58(),
+    index: 0,
+    protocolFeeRate: 12000,
+    tradeFeeRate: 3000,
+    tickSpacing: 60,
+    fundFeeRate: 4000,
+    description: 'Test CLMM config',
+    defaultRange: 5,
+    defaultRangePoint: [1, 5, 10],
+  },
+  price: 150,
+};
 
-export const CLMM_POOL_KEYS = {
+export const CLMM_POOL_KEYS: Pick<ClmmKeys, 'vault'> = {
   vault: {
     A: CLMM_VAULT_A.toBase58(),
     B: CLMM_VAULT_B.toBase58(),
   },
-} as const;
+};
 
 export const CLMM_SWAP_FIXTURE = {
   amountIn: new BN('2500000'),

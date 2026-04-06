@@ -143,9 +143,10 @@ export async function executeTransform(options: {
   bindings: Record<string, unknown>;
   programId: string;
 }) {
+  const normalizedBindings = normalizeRuntimeValue(options.bindings) as JsonRecord;
   const scope: JsonRecord = {
     runtime: options.runtimePack,
-    ...normalizeRuntimeValue(options.bindings),
+    ...normalizedBindings,
   };
   await runNestedTransformSteps(
     options.runtimePack.transforms[options.transformName],

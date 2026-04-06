@@ -1,5 +1,6 @@
 import BN from 'bn.js';
 import { Decimal } from 'decimal.js';
+import { address, type Address } from '@solana/kit';
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
   DEFAULT_RECENT_SLOT_DURATION_MS,
@@ -27,6 +28,10 @@ export const KAMINO_LIQUIDITY_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC
 export const SYSVAR_INSTRUCTIONS = new PublicKey('Sysvar1nstructions1111111111111111111111111');
 export const KAMINO_RECENT_SLOT_DURATION_MS = DEFAULT_RECENT_SLOT_DURATION_MS;
 
+function asAddress(value: string): Address {
+  return address(value);
+}
+
 function oneBsf() {
   return {
     value: [new BN('1152921504606846976'), new BN(0), new BN(0), new BN(0)],
@@ -53,16 +58,17 @@ function encodeAccount(
 }
 
 export async function createKaminoFixture() {
+  const lendingMarketAddress = asAddress(KAMINO_LENDING_MARKET.toBase58());
+  const reserveAddress = asAddress(KAMINO_RESERVE.toBase58());
+  const programAddress = asAddress(KAMINO_PROGRAM_ID);
+  const ownerAddress = asAddress(KAMINO_OWNER.toBase58());
   const [lendingMarketAuthority, lendingMarketAuthorityBump] = await lendingMarketAuthPda(
-    KAMINO_LENDING_MARKET.toBase58(),
-    KAMINO_PROGRAM_ID,
+    lendingMarketAddress,
+    programAddress,
   );
-  const reserveAddresses = await reservePdas(KAMINO_PROGRAM_ID, KAMINO_RESERVE.toBase58());
+  const reserveAddresses = await reservePdas(programAddress, reserveAddress);
   const obligation = new PublicKey(
-    await new VanillaObligation(KAMINO_PROGRAM_ID).toPda(
-      KAMINO_LENDING_MARKET.toBase58(),
-      KAMINO_OWNER.toBase58(),
-    ),
+    await new VanillaObligation(programAddress).toPda(lendingMarketAddress, ownerAddress),
   );
   const reserveLiquiditySupply = new PublicKey(reserveAddresses.liquiditySupplyVault);
   const reserveCollateralMint = new PublicKey(reserveAddresses.collateralMint);
@@ -197,22 +203,26 @@ export async function buildKaminoConnection() {
 
 export async function buildOfflineKaminoMarket() {
   const connection = await buildKaminoConnection();
+  const reserveLiquidityMintAddress = asAddress(KAMINO_FIXTURE.reserveLiquidityMint.toBase58());
+  const reserveAddress = asAddress(KAMINO_FIXTURE.reserve.toBase58());
+  const lendingMarketAddress = asAddress(KAMINO_FIXTURE.lendingMarket.toBase58());
+  const programAddress = asAddress(KAMINO_PROGRAM_ID);
   const tokenOracleData: TokenOracleData = {
-    mintAddress: KAMINO_FIXTURE.reserveLiquidityMint.toBase58(),
+    mintAddress: reserveLiquidityMintAddress,
     decimals: new Decimal(10).pow(KAMINO_FIXTURE.reserveAccount.liquidity.mintDecimals.toString()),
     price: new Decimal(1),
     timestamp: 1n,
     valid: true,
   };
   const reserve = KaminoReserve.initialize(
-    KAMINO_FIXTURE.reserve.toBase58(),
+    reserveAddress,
     KAMINO_FIXTURE.reserveAccount,
     tokenOracleData,
     connection as never,
     KAMINO_RECENT_SLOT_DURATION_MS,
     { deprecatedAssets: [] },
   );
-  const reserves = new Map([[KAMINO_FIXTURE.reserve.toBase58(), reserve]]);
+  const reserves = new Map<Address, KaminoReserve>([[reserveAddress, reserve]]);
 
   return {
     connection,
@@ -220,11 +230,11 @@ export async function buildOfflineKaminoMarket() {
       connection as never,
       KAMINO_FIXTURE.lendingMarketAccount,
       reserves,
-      KAMINO_FIXTURE.lendingMarket.toBase58(),
+      lendingMarketAddress,
       KAMINO_RECENT_SLOT_DURATION_MS,
-      KAMINO_PROGRAM_ID,
+      programAddress,
     ),
     reserve,
-    obligationType: new VanillaObligation(KAMINO_PROGRAM_ID),
+    obligationType: new VanillaObligation(programAddress),
   };
 }
