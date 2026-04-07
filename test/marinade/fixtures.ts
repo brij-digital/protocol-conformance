@@ -8,6 +8,7 @@ export const MARINADE_PROGRAM = new PublicKey(MARINADE_PROGRAM_ID);
 export const MARINADE_STATE_ADDRESS = new PublicKey('8szGkuLTAux9XMgZ2vtY39jVSowEcpBfFfD8hXSEqdGC');
 export const MARINADE_MSOL_MINT = new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So');
 export const MARINADE_LIQ_POOL_MSOL_LEG = new PublicKey('UefNb6z6yvArqe4cJHTXCqStRsKmWhGxnZzuHbikP5Q');
+export const MARINADE_TREASURY_MSOL_ACCOUNT = new PublicKey('B1aLzaNMeFVAyQ6f3XbbUyKcH2YPHu2fqiEagmiF23VR');
 export const TEST_WALLET = Keypair.generate().publicKey;
 export const TEST_TICKET_ACCOUNT = Keypair.generate().publicKey;
 export const TEST_VALIDATOR_VOTE = Keypair.generate().publicKey;
@@ -36,7 +37,7 @@ const MARINADE_STATE_DATA = {
   msolMint: MARINADE_MSOL_MINT,
   adminAuthority: publicKey(),
   operationalSolAccount: publicKey(),
-  treasuryMsolAccount: publicKey(),
+  treasuryMsolAccount: MARINADE_TREASURY_MSOL_ACCOUNT,
   reserveBumpSeed,
   msolMintAuthorityBumpSeed,
   rentExemptForTokenAcc: new BN(2_039_280),
@@ -173,9 +174,10 @@ export const MARINADE_FIXTURE = {
 };
 
 export async function buildOfflineMarinade() {
+  const connection = new OfflineMarinadeConnection();
   const marinade = new Marinade(
     new MarinadeConfig({
-      connection: new OfflineMarinadeConnection() as never,
+      connection: connection as never,
       publicKey: MARINADE_FIXTURE.wallet,
       marinadeFinanceProgramId: MARINADE_PROGRAM,
       marinadeStateAddress: MARINADE_STATE_ADDRESS,
@@ -183,6 +185,7 @@ export async function buildOfflineMarinade() {
   );
 
   return {
+    connection,
     marinade,
     marinadeState: await MarinadeState.fetch(marinade),
   };
