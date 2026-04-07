@@ -68,6 +68,17 @@
       "status": "active"
     },
     {
+      "id": "meteora-dlmm-mainnet",
+      "name": "Meteora DLMM",
+      "network": "mainnet-beta",
+      "programId": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "codamaIdlPath": "/codama/meteora-dlmm.json",
+      "agentRuntimePath": "/runtime/meteora-dlmm.json",
+      "transport": "local",
+      "supportedCommands": [],
+      "status": "active"
+    },
+    {
       "id": "marinade-mainnet",
       "name": "Marinade Liquid Staking",
       "network": "mainnet-beta",
