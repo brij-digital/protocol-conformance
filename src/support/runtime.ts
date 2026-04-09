@@ -15,7 +15,7 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 process.env.APPPACK_RUNTIME_REGISTRY_PATH = path.resolve(
   moduleDir,
-  '../../registry-overlay/registry.json',
+  '../../../protocol-registry/registry.json',
 );
 
 type StoredAccount = { data: Buffer; owner: string };

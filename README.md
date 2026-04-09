@@ -6,17 +6,17 @@ Multi-protocol conformance harness for AppPack. Tests instruction encoding, acco
 
 | Protocol | SDK | Tests | Coverage |
 |---|---|---|---|
-| **Orca Whirlpool** | `@orca-so/whirlpools-core` + `@orca-so/whirlpools-client` | 80 | Swap, two-hop, LP (open/close/increase/decrease), collect fees/rewards, all transforms, edge cases, integration |
+| **Orca Whirlpool** | `@orca-so/whirlpools-core` + `@orca-so/whirlpools-client` | 93 | Swap, two-hop, LP (open/close/increase/decrease), collect fees/rewards, all transforms, edge cases, integration |
 | **Pump AMM** | `@pump-fun/pump-swap-sdk` | 18 | Buy/sell encoding, quote parity, transform parity, PDA derivation |
 | **Pump Core** | `@pump-fun/pump-sdk` | 7 | Buy encoding, bonding curve quotes, transform parity |
 | **Kamino K-Lend** | `@kamino-finance/klend-sdk` | 6 | Deposit/borrow/repay/withdraw encoding, PDA derivation, obligation decoding |
-| **Raydium** | `@raydium-io/raydium-sdk-v2` | _in progress_ | CLMM + AMM v4 swap, tick math, pool PDAs |
+| **Raydium** | `@raydium-io/raydium-sdk-v2` | _in progress_ | CLMM swap, tick math, pool PDAs |
 
 ## Structure
 
 ```
 src/
-  support/runtime.ts          # Shared: StaticAccountConnection, registry path
+  support/runtime.ts          # Shared: StaticAccountConnection, canonical registry path
 test/
   orca/                       # Orca Whirlpool tests
     runtime-parity.test.ts    #   Write encoding + view quote parity
@@ -38,9 +38,7 @@ test/
     fixtures.ts               #   Reserve, obligation, lending market fixtures
   raydium/                    # Raydium tests (in progress)
     clmm-parity.test.ts       #   CLMM swap + tick math
-    amm-parity.test.ts        #   AMM v4 swap
     fixtures-clmm.ts          #   CLMM pool fixtures
-    fixtures-amm.ts           #   AMM pool fixtures
 ```
 
 ## What We Test
@@ -51,6 +49,10 @@ test/
 
 ## Run
 
+This repo expects sibling checkouts for:
+- `../protocol-runtime`
+- `../protocol-registry`
+
 ```bash
 npm install
 npx vitest run
@@ -58,7 +60,7 @@ npx vitest run
 
 ## How It Works
 
-All tests run **offline** — no Solana RPC needed. We use `StaticAccountConnection` to mock account reads with fixture data, then compare our runtime spec output against the official SDK output.
+All tests run **offline** — no Solana RPC needed. We use `StaticAccountConnection` to mock account reads with fixture data, then compare our runtime spec output against the official SDK output. Runtime and Codama artifacts are resolved directly from the canonical sibling `protocol-registry` checkout.
 
 ## Related Repos
 
