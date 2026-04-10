@@ -7,7 +7,7 @@ import {
   TOKEN_PROGRAM_ID,
   type RawMint,
 } from '@solana/spl-token';
-import { DirectAccountsCoder } from '@brij-digital/apppack-runtime';
+import { DirectAccountsCoder } from '@brij-digital/apppack-runtime/directAccountsCoder';
 import {
   GLOBAL_PDA,
   PumpSdk,

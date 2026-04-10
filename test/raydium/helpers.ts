@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { PublicKey, type TransactionInstruction } from '@solana/web3.js';
-import { runRegisteredComputeStep } from '@brij-digital/apppack-runtime';
+import { runRegisteredComputeStep } from '@brij-digital/apppack-runtime/metaComputeRegistry';
 import { getTestWallet, StaticAccountConnection } from '../../src/support/runtime.js';
 
 type JsonRecord = Record<string, unknown>;

@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { runRegisteredComputeStep } from '@brij-digital/apppack-runtime';
+import { runRegisteredComputeStep } from '@brij-digital/apppack-runtime/metaComputeRegistry';
 import { getTestWallet, StaticAccountConnection } from '../../src/support/runtime.js';
 
 type JsonRecord = Record<string, unknown>;

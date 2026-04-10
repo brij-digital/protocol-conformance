@@ -11,7 +11,8 @@ import {
   swapQuoteByOutputToken,
 } from '@orca-so/whirlpools-core';
 import { describe, expect, it } from 'vitest';
-import { runRegisteredComputeStep, runRuntimeView } from '@brij-digital/apppack-runtime';
+import { runRuntimeView } from '@brij-digital/apppack-runtime';
+import { runRegisteredComputeStep } from '@brij-digital/apppack-runtime/metaComputeRegistry';
 import { address } from '@solana/kit';
 import { getTickArrayAddress, increaseLiquidityMethod } from '@orca-so/whirlpools-client';
 import {

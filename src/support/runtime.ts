@@ -18,9 +18,9 @@ process.env.APPPACK_RUNTIME_REGISTRY_PATH = path.resolve(
   '../../../protocol-registry/registry.json',
 );
 
-type StoredAccount = { data: Buffer; owner: string };
+type StoredAccount = { data: Uint8Array; owner: string };
 type Web3AccountInfo = {
-  data: Buffer;
+  data: Uint8Array;
   owner: PublicKey;
   executable: boolean;
   lamports: number;
@@ -35,15 +35,27 @@ type RpcAccountInfo = {
   space: bigint;
 };
 
-function decodeMemcmpBytes(bytes: string, encoding?: string): Buffer {
+function decodeMemcmpBytes(bytes: string, encoding?: string): Uint8Array {
   if (encoding === 'base64') {
-    return Buffer.from(bytes, 'base64');
+    return Uint8Array.from(Buffer.from(bytes, 'base64'));
   }
   try {
-    return new PublicKey(bytes).toBuffer();
+    return new PublicKey(bytes).toBytes();
   } catch {
-    return Buffer.from(bytes);
+    return new TextEncoder().encode(bytes);
   }
+}
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function asBigInt(value: bigint | number | undefined): bigint | undefined {
@@ -64,7 +76,7 @@ export class StaticAccountConnection {
     this.slot = typeof slot === 'bigint' ? slot : BigInt(slot);
   }
 
-  setRawAccount(address: string, owner: string, data: Buffer = Buffer.alloc(0)): void {
+  setRawAccount(address: string, owner: string, data: Uint8Array = new Uint8Array()): void {
     this.accounts.set(address, { data, owner });
   }
 
@@ -107,7 +119,7 @@ export class StaticAccountConnection {
       return null;
     }
     return {
-      data: [entry.data.toString('base64'), 'base64'],
+      data: [Buffer.from(entry.data).toString('base64'), 'base64'],
       owner: entry.owner,
       executable: false,
       lamports: 0,
@@ -191,7 +203,7 @@ export class StaticAccountConnection {
   }
 
   private matchesFilters(
-    data: Buffer,
+    data: Uint8Array,
     filters?: Array<{
       dataSize?: bigint | number;
       memcmp?: { offset: bigint | number; bytes: string; encoding?: string };
@@ -210,7 +222,7 @@ export class StaticAccountConnection {
       }
       const offset = Number(asBigInt(filter.memcmp.offset) ?? 0n);
       const expected = decodeMemcmpBytes(filter.memcmp.bytes, filter.memcmp.encoding);
-      return data.subarray(offset, offset + expected.length).equals(expected);
+      return bytesEqual(data.subarray(offset, offset + expected.length), expected);
     });
   }
 }
