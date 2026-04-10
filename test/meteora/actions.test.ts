@@ -222,7 +222,6 @@ describe('Meteora DLMM actions', () => {
         sender: wallet,
         tokenXProgram: new PublicKey(TOKEN_PROGRAM),
         tokenYProgram: new PublicKey(TOKEN_PROGRAM),
-        memoProgram: new PublicKey(MEMO_PROGRAM),
         eventAuthority,
         program: PROGRAM_ID,
       })
