@@ -249,6 +249,56 @@ describe('Orca LP runtime operations', () => {
     expect(quoteDecrease.operationKind).toBe('view');
   });
 
+  it('derives a write-ready method from quote_increase_liquidity', async () => {
+    const whirlpoolArgs = buildWhirlpoolArgs({
+      tickCurrentIndex: 0,
+      sqrtPrice: tickIndexToSqrtPrice(0),
+    });
+    const { connection, position } = await buildToken2022PositionConnection({ whirlpoolArgs });
+    const view = await runRuntimeView({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'quote_increase_liquidity',
+      input: {
+        position,
+        specified_token_mint: TOKEN_MINT_A,
+        specified_token_amount: '5000',
+        slippage_bps: '100',
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+
+    const output = view.output as Record<string, string>;
+    const method = view.derived.method as Record<string, string>;
+
+    expect(method).toEqual({
+      tokenMaxA: output.token_max_a,
+      tokenMaxB: output.token_max_b,
+      minSqrtPrice: '4295048016',
+      maxSqrtPrice: '79226673515401279992447579055',
+    });
+
+    const prepared = await prepareRuntimeInstruction({
+      protocolId: 'orca-whirlpool-mainnet',
+      operationId: 'increase_liquidity_by_token_amounts_v2',
+      input: {
+        position,
+        method,
+      },
+      connection: connection as never,
+      walletPublicKey: getTestWallet(),
+    });
+
+    expect(prepared.args.method).toEqual({
+      ByTokenAmounts: {
+        tokenMaxA: output.token_max_a,
+        tokenMaxB: output.token_max_b,
+        minSqrtPrice: '4295048016',
+        maxSqrtPrice: '79226673515401279992447579055',
+      },
+    });
+  });
+
   it('matches Orca account derivation for open_position', async () => {
     const prepared = await prepareRuntimeInstruction({
       protocolId: 'orca-whirlpool-mainnet',
